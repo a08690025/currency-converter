@@ -136,6 +136,15 @@ function formatAmount(value, code) {
   }
 }
 
+// 計算式依實際數值顯示，最多兩位小數且不強制補 0。
+function formatExpressionAmount(value) {
+  if (isNaN(value) || !isFinite(value)) return '—';
+  return new Intl.NumberFormat('zh-TW', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 function getCurrencyMeta(code) {
   return ALL_CURRENCIES.find(c => c.code === code) || { code, name: code, flag: '🏳', symbol: '' };
 }
@@ -369,10 +378,10 @@ function handleCalcBtn(action, value) {
         const result = applyOperator();
         state.operand = result;
         state.inputValue = String(result);
-        state.expression = `${state.expression} ${formatAmount(currentValue, state.activeCurrency)} ${opSymbol}`;
+        state.expression = `${state.expression} ${formatExpressionAmount(currentValue)} ${opSymbol}`;
       } else {
         state.operand = getCurrentInputNum();
-        state.expression = `${formatAmount(state.operand, state.activeCurrency)} ${opSymbol}`;
+        state.expression = `${formatExpressionAmount(state.operand)} ${opSymbol}`;
       }
       state.operator = value;
       state.waitingForOperand = true;
@@ -382,7 +391,7 @@ function handleCalcBtn(action, value) {
     case 'equals': {
       if (state.operator) {
         const b = getCurrentInputNum();
-        const exprStr = `${state.expression} ${formatAmount(b, state.activeCurrency)} =`;
+        const exprStr = `${state.expression} ${formatExpressionAmount(b)} =`;
         const result = applyOperator();
         state.inputValue = String(parseFloat(result.toPrecision(12)));
         state.operator = null;
