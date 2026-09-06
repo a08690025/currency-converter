@@ -363,30 +363,33 @@ function handleCalcBtn(action, value) {
       break;
     }
     case 'op': {
+      const opSymbol = value === '×' ? '×' : value === '÷' ? '÷' : value;
       if (state.operator && !state.waitingForOperand) {
+        const currentValue = getCurrentInputNum();
         const result = applyOperator();
         state.operand = result;
         state.inputValue = String(result);
+        state.expression = `${state.expression} ${formatAmount(currentValue, state.activeCurrency)} ${opSymbol}`;
       } else {
         state.operand = getCurrentInputNum();
+        state.expression = `${formatAmount(state.operand, state.activeCurrency)} ${opSymbol}`;
       }
       state.operator = value;
       state.waitingForOperand = true;
-      const opSymbol = value === '×' ? '×' : value === '÷' ? '÷' : value;
-      updateExpression(opSymbol);
+      updateExpression();
       break;
     }
     case 'equals': {
       if (state.operator) {
-        const a = state.operand;
         const b = getCurrentInputNum();
-        const exprStr = `${formatAmount(a, state.activeCurrency)} ${state.operator} ${formatAmount(b, state.activeCurrency)}`;
+        const exprStr = `${state.expression} ${formatAmount(b, state.activeCurrency)} =`;
         const result = applyOperator();
         state.inputValue = String(parseFloat(result.toPrecision(12)));
         state.operator = null;
         state.operand = null;
         state.waitingForOperand = false;
-        $('calcExpr').textContent = exprStr + ' =';
+        state.expression = exprStr;
+        $('calcExpr').textContent = exprStr;
       }
       break;
     }
@@ -396,13 +399,10 @@ function handleCalcBtn(action, value) {
   animateActiveItem();
 }
 
-function updateExpression(op) {
-  if (state.operator) {
-    const opLabel = { '×': '×', '÷': '÷', '+': '+', '-': '−' }[state.operator] || state.operator;
-    $('calcExpr').textContent = state.operand !== null ? `${formatAmount(state.operand, state.activeCurrency)} ${opLabel}` : '';
-  } else {
-    $('calcExpr').textContent = '';
-  }
+function updateExpression() {
+  // 完成計算後，下一次輸入才清空上一條算式；連續運算則保留完整歷程。
+  if (!state.operator) state.expression = '';
+  $('calcExpr').textContent = state.expression;
 }
 
 function animateActiveItem() {

@@ -503,14 +503,18 @@ input { font-family: var(--font); outline: none; border: none; background: trans
 }
 
 .calc-display {
-  height: 36px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding: 0 20px;
+  padding: 0 18px;
   border-bottom: 1px solid var(--border-subtle);
   transition: all 0.2s ease;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+
+.calc-display::-webkit-scrollbar { display: none; }
 
 /* 當 span#calcExpr 內部為空時，隱藏整個 .calc-display，拿掉無意義的空白與底線 */
 .calc-display:has(#calcExpr:empty) {
@@ -518,11 +522,13 @@ input { font-family: var(--font); outline: none; border: none; background: trans
 }
 
 .calc-expr {
-  font-size: 14px;
+  font-size: 18px;
   color: var(--text-secondary);
-  font-weight: 400;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   min-height: 1em;
+  white-space: nowrap;
+  min-width: max-content;
 }
 
 .calc-grid {
