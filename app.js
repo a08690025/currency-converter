@@ -77,6 +77,10 @@ let state = {
   decimalPlaces: 1,   // 小數點位數（預設 1 位）
 };
 
+// 在舊輸入框 blur 重繪清單後，接續完成使用者的第一次點擊。
+let pendingInlineEdit = null;
+let pendingCurrencySelect = null;
+
 /* ===========================
    工具函式
    =========================== */
@@ -481,22 +485,41 @@ function renderCurrencyList() {
     `;
 
     // 點選貨幣 → 切換為輸入目標（排除點擊拖曳把手與點擊數字區域的狀況）
+    item.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.drag-handle') || e.target.closest('.currency-amount') || e.target.closest('.currency-amount-input')) return;
+
+      const activeInput = document.querySelector('.currency-amount-input');
+      if (!activeInput) return;
+
+      if (e.button !== undefined && e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      pendingCurrencySelect = code;
+      activeInput.blur();
+    });
+
     item.addEventListener('click', (e) => {
-      if (e.target.closest('.drag-handle') || e.target.closest('.currency-amount')) return;
+      if (e.target.closest('.drag-handle') || e.target.closest('.currency-amount') || e.target.closest('.currency-amount-input')) return;
       selectCurrency(code);
     });
 
-    // 點選數字區域 → 直接從點擊位置開始修改數字
+    // 點選數字區域 → 直接從點擊位置開始修改數字。
     const amountEl = item.querySelector('.currency-amount');
-    amountEl.addEventListener('click', (e) => {
-      e.stopPropagation(); // 阻止氣泡事件觸發外層 card 的 click
-      
-      // 先切換 active
-      if (state.activeCurrency !== code) {
-        selectCurrency(code);
+    amountEl.addEventListener('pointerdown', (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const activeInput = document.querySelector('.currency-amount-input');
+      if (activeInput) {
+        pendingInlineEdit = {
+          code,
+          clickEvent: { clientX: e.clientX, clientY: e.clientY },
+        };
+        activeInput.blur();
+      } else {
+        startInlineEdit(code, e);
       }
-      
-      startInlineEdit(code, e);
     });
 
     // 鍵盤支援
@@ -1094,6 +1117,16 @@ function startInlineEdit(code, clickEvent) {
 
     saveState();
     renderCurrencyList();
+
+    const nextEdit = pendingInlineEdit;
+    pendingInlineEdit = null;
+    const nextSelection = pendingCurrencySelect;
+    pendingCurrencySelect = null;
+    if (nextEdit) {
+      startInlineEdit(nextEdit.code, nextEdit.clickEvent);
+    } else if (nextSelection) {
+      selectCurrency(nextSelection);
+    }
   };
 
   const cancelEdit = () => {
