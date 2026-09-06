@@ -111,28 +111,14 @@ function loadState() {
 
 function formatAmount(value, code) {
   if (isNaN(value) || !isFinite(value)) return '—';
-  if (value === 0) {
-    const dec = state.decimalPlaces;
-    return new Intl.NumberFormat('zh-TW', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(value);
-  }
-
-  let dec = state.decimalPlaces;
-  
-  // 檢查如果用目前設定的位數四捨五入後，是不是會變成 0
-  const checkRound = parseFloat(value.toFixed(dec));
-  if (checkRound === 0) {
-    // 原始值不為 0 但四捨五入變 0，代表數字太小，動態增加小數點位數直到非零有效數字出現
-    const firstNonZero = Math.ceil(-Math.log10(Math.abs(value)));
-    dec = Math.max(dec, firstNonZero);
-  }
-
+  // 金額最多兩位小數，但不強制補尾端 0：2.00 → 2、9.40 → 9.4。
   try {
     return new Intl.NumberFormat('zh-TW', {
-      minimumFractionDigits: dec,
-      maximumFractionDigits: dec,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
     }).format(value);
   } catch(_) {
-    return value.toFixed(dec);
+    return String(Math.round(value * 100) / 100);
   }
 }
 
