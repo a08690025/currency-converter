@@ -1,0 +1,7 @@
+# Keep Android build files and local tools out of the website repository.
+*.apk
+*.aab
+*.jks
+scratch/
+node_modules/
+.DS_Store

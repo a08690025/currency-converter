@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>貨幣轉換器 - 即時匯率</title>
+  <meta name="description" content="即時貨幣轉換器，支援台幣、人民幣、日幣、美金等多種貨幣，每小時自動更新最新匯率。" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon.jpg" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+</head>
+<body>
+
+  <!-- 頂部標題列 -->
+  <header class="app-header">
+    <div class="header-left clickable-logo" id="headerAddBtn" title="新增貨幣" aria-label="新增貨幣">
+      <div class="app-logo">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <circle cx="14" cy="14" r="14" fill="url(#logoGrad)"/>
+          <text x="14" y="19" text-anchor="middle" fill="white" font-size="13" font-weight="700" font-family="Inter">¥</text>
+          <defs>
+            <linearGradient id="logoGrad" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#7C6FF7"/>
+              <stop offset="100%" stop-color="#3ECFCF"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <h1 class="header-title">新增貨幣</h1>
+    </div>
+    <div class="header-right">
+      <div class="rate-status" id="rateStatus">
+        <span class="status-dot" id="statusDot"></span>
+        <span class="status-text" id="statusText">載入中…</span>
+      </div>
+      <button class="icon-btn" id="refreshBtn" title="重新整理匯率" aria-label="重新整理匯率">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/>
+          <polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="settingsBtn" title="設定" aria-label="設定">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- 主體內容 -->
+  <main class="app-main">
+    <!-- 貨幣列表區塊 -->
+    <section class="currency-section">
+      <div class="currency-list" id="currencyList" aria-label="貨幣清單">
+        <!-- 由 JS 動態產生 -->
+      </div>
+      <button class="add-currency-btn" id="addCurrencyBtn" aria-label="新增貨幣" style="display: none;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        新增貨幣
+      </button>
+    </section>
+
+    <!-- 計算機鍵盤 -->
+    <section class="calculator">
+      <div class="calc-display" id="calcDisplay">
+        <span class="calc-expr" id="calcExpr"></span>
+      </div>
+      <div class="calc-grid">
+        <!-- 第一行 -->
+        <button class="calc-btn func-btn" data-action="clear" id="btnClear">AC</button>
+        <button class="calc-btn func-btn" data-action="percent" id="btnPct">%</button>
+        <button class="calc-btn func-btn" data-action="backspace" id="btnBack">
+          <svg width="20" height="16" viewBox="0 0 24 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+            <line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/>
+          </svg>
+        </button>
+        <button class="calc-btn op-btn" data-action="op" data-value="÷" id="btnDiv">÷</button>
+
+        <!-- 第二行 -->
+        <button class="calc-btn num-btn" data-action="digit" data-value="7" id="btn7">7</button>
+        <button class="calc-btn num-btn" data-action="digit" data-value="8" id="btn8">8</button>
+        <button class="calc-btn num-btn" data-action="digit" data-value="9" id="btn9">9</button>
+        <button class="calc-btn op-btn" data-action="op" data-value="×" id="btnMul">×</button>
+
+        <!-- 第三行 -->
+        <button class="calc-btn num-btn" data-action="digit" data-value="4" id="btn4">4</button>
+        <button class="calc-btn num-btn" data-action="digit" data-value="5" id="btn5">5</button>
+        <button class="calc-btn num-btn" data-action="digit" data-value="6" id="btn6">6</button>
+        <button class="calc-btn op-btn" data-action="op" data-value="-" id="btnSub">−</button>
+
+        <!-- 第四行 -->
+        <button class="calc-btn num-btn" data-action="digit" data-value="1" id="btn1">1</button>
+        <button class="calc-btn num-btn" data-action="digit" data-value="2" id="btn2">2</button>
+        <button class="calc-btn num-btn" data-action="digit" data-value="3" id="btn3">3</button>
+        <button class="calc-btn op-btn" data-action="op" data-value="+" id="btnAdd">+</button>
+
+        <!-- 第五行 -->
+        <button class="calc-btn num-btn wide-btn" data-action="digit" data-value="0" id="btn0">0</button>
+        <button class="calc-btn num-btn" data-action="decimal" id="btnDot">.</button>
+        <button class="calc-btn eq-btn" data-action="equals" id="btnEq">=</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- 貨幣選擇抽屜 -->
+  <div class="drawer-overlay" id="drawerOverlay"></div>
+  <aside class="currency-drawer" id="currencyDrawer" role="dialog" aria-label="選擇貨幣" aria-modal="true">
+    <div class="drawer-handle"></div>
+    <div class="drawer-header">
+      <h2 class="drawer-title">選擇貨幣</h2>
+      <button class="icon-btn" id="closeDrawerBtn" aria-label="關閉">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="drawer-search">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" class="search-input" id="currencySearch" placeholder="搜尋貨幣（名稱或代碼）…" aria-label="搜尋貨幣" autocomplete="off" />
+    </div>
+    <div class="drawer-list" id="drawerList" role="listbox" aria-label="可選貨幣清單">
+      <!-- 由 JS 動態產生 -->
+    </div>
+  </aside>
+
+  <!-- 設定抽屜 -->
+  <aside class="settings-drawer" id="settingsDrawer" role="dialog" aria-label="設定" aria-modal="true">
+    <div class="drawer-handle"></div>
+    <div class="drawer-header">
+      <h2 class="drawer-title">設定</h2>
+      <button class="icon-btn" id="closeSettingsBtn" aria-label="關閉">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="settings-content">
+      <div class="settings-section">
+        <h3 class="settings-label">外觀</h3>
+        <div class="settings-row">
+          <span class="settings-row-label">深色模式</span>
+          <label class="toggle" id="darkModeLabel">
+            <input type="checkbox" id="darkModeCheck" checked aria-label="切換深色模式" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="settings-row" style="margin-top: 10px;">
+          <span class="settings-row-label">小數點位數</span>
+          <select class="settings-select" id="decimalSelect" aria-label="設定小數點位數">
+            <option value="0">0 位</option>
+            <option value="1">1 位</option>
+            <option value="2">2 位</option>
+            <option value="3">3 位</option>
+            <option value="4">4 位</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3 class="settings-label">匯率資料</h3>
+        <div class="settings-info-card">
+          <div class="info-row">
+            <span class="info-key">資料來源</span>
+            <span class="info-val">exchangerate.fun</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">更新頻率</span>
+            <span class="info-val">每小時</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">上次更新</span>
+            <span class="info-val" id="lastUpdateTime">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3 class="settings-label">關於</h3>
+        <div class="settings-info-card">
+          <div class="info-row">
+            <span class="info-key">版本</span>
+            <span class="info-val">1.1.0</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">支援貨幣</span>
+            <span class="info-val">170+ 種</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Toast 通知 -->
+  <div class="toast" id="toast" role="alert" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('PWA Service Worker registered!', reg))
+          .catch(err => console.log('Service Worker registration failed: ', err));
+      });
+    }
+  </script>
+</body>
+</html>
