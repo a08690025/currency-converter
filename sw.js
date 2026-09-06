@@ -1,5 +1,5 @@
 // 更新網站檔案時請提高這個版本，讓已安裝的 PWA 取得新版快取。
-const CACHE_NAME = 'currency-converter-v7';
+const CACHE_NAME = 'currency-converter-v8';
 const ASSETS = [
   './',
   './index.html',
