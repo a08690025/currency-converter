@@ -1,5 +1,6 @@
 // 更新網站檔案時請提高這個版本，讓已安裝的 PWA 取得新版快取。
-const CACHE_NAME = 'currency-converter-v11';
+const CACHE_NAME = 'currency-converter-v10';
+const CACHE_NAMES_TO_RESET = ['currency-converter-v10', 'currency-converter-v11'];
 const ASSETS = [
   './',
   './index.html',
@@ -12,9 +13,11 @@ const ASSETS = [
 // 安裝 Service Worker 並快取資源
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
-    }).then(() => self.skipWaiting())
+    // v10 名稱曾用於舊版；先移除舊 v10/v11，再用目前資產重建 v10。
+    Promise.all(CACHE_NAMES_TO_RESET.map((name) => caches.delete(name)))
+      .then(() => caches.open(CACHE_NAME))
+      .then((cache) => cache.addAll(ASSETS))
+      .then(() => self.skipWaiting())
   );
 });
 
