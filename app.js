@@ -562,7 +562,7 @@ function renderCurrencyList() {
             && e.clientY >= rect.top - 14 && e.clientY <= rect.bottom + 14;
           if (!isNearInput) {
             activeInput.select();
-            showPasteButton({ clientX: e.clientX, clientY: e.clientY + 10 }, 'replace');
+            showPasteButtonBelowInput('replace');
           }
           activeInput.focus();
           return;
@@ -1220,7 +1220,7 @@ function startInlineEdit(code, clickEvent) {
   if (clickEvent && clickEvent.selectAll) {
     input.select();
     if (clickEvent.showPasteButton) {
-      showPasteButton(clickEvent.pasteButtonPosition || { clientX: 0, clientY: 0 }, 'replace');
+      showPasteButtonBelowInput('replace');
     }
   } else {
     const finalPos = Math.max(0, Math.min(input.value.length, targetCursorPos));
