@@ -79,7 +79,6 @@ let state = {
 
 // 在舊輸入框 blur 重繪清單後，接續完成使用者的第一次點擊。
 let pendingInlineEdit = null;
-let pendingPasteMenu = null;
 
 /* ===========================
    工具函式
@@ -288,37 +287,6 @@ function handleInputWithCalcBtn(input, action, value) {
       handleCalcBtn(action, value);
     }, 60);
   }
-}
-
-// 桌面版：在貨幣列按右鍵時提供貼上。手機仍可使用輸入框原生長按貼上。
-function showPasteMenu(position) {
-  document.querySelector('.currency-paste-menu')?.remove();
-  const menu = document.createElement('button');
-  menu.type = 'button';
-  menu.className = 'currency-paste-menu';
-  menu.textContent = '貼上';
-  menu.style.left = `${Math.min(position.clientX, window.innerWidth - 92)}px`;
-  menu.style.top = `${Math.min(position.clientY, window.innerHeight - 48)}px`;
-  document.body.appendChild(menu);
-  const closeMenu = () => menu.remove();
-  menu.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-  });
-  menu.addEventListener('click', async () => {
-    closeMenu();
-    const input = document.querySelector('.currency-amount-input');
-    if (!input) return;
-    try {
-      const text = await navigator.clipboard.readText();
-      input.setRangeText(text.replace(/[^0-9.]/g, ''), input.selectionStart, input.selectionEnd, 'end');
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.focus();
-    } catch (error) {
-      input.focus();
-    }
-  });
-  window.setTimeout(() => document.addEventListener('pointerdown', closeMenu, { once: true }), 0);
 }
 
 function handleCalcBtn(action, value) {
@@ -538,23 +506,32 @@ function renderCurrencyList() {
         };
         activeInput.blur();
       } else {
-        startInlineEdit(code, e);
+        startInlineEdit(code, {
+          clientX: e.clientX,
+          clientY: e.clientY,
+          useAmountCaret: Boolean(e.target.closest('.currency-amount')),
+          selectAll: !e.target.closest('.currency-amount'),
+        });
       }
     });
 
     item.addEventListener('contextmenu', (e) => {
       if (e.target.closest('.drag-handle') || e.target.closest('.currency-amount-input')) return;
-      e.preventDefault();
       const position = { clientX: e.clientX, clientY: e.clientY };
       const activeInput = document.querySelector('.currency-amount-input');
       if (activeInput && activeInput.closest('.currency-item') !== item) {
-        pendingInlineEdit = { code, clickEvent: { ...position, useAmountCaret: false } };
-        pendingPasteMenu = position;
+        pendingInlineEdit = { code, clickEvent: { ...position, useAmountCaret: false, selectAll: true } };
         activeInput.blur();
       } else {
-        if (!activeInput) startInlineEdit(code, { ...position, useAmountCaret: false });
-        showPasteMenu(position);
+        if (!activeInput) startInlineEdit(code, { ...position, useAmountCaret: false, selectAll: true });
       }
+
+      // 瀏覽器開啟原生右鍵選單時可能把游標移到點擊處；在選單出現後再全選，
+      // 讓原生「貼上」與 Ctrl+V 都是完整取代，而不是接在數字最後。
+      window.setTimeout(() => {
+        const input = document.querySelector(`.currency-item[data-code="${code}"] .currency-amount-input`);
+        if (input) input.select();
+      }, 0);
     });
 
     // 鍵盤支援
@@ -1126,8 +1103,12 @@ function startInlineEdit(code, clickEvent) {
   input.focus();
   
   // 將游標移至點擊位置
-  const finalPos = Math.max(0, Math.min(input.value.length, targetCursorPos));
-  input.setSelectionRange(finalPos, finalPos);
+  if (clickEvent && clickEvent.selectAll) {
+    input.select();
+  } else {
+    const finalPos = Math.max(0, Math.min(input.value.length, targetCursorPos));
+    input.setSelectionRange(finalPos, finalPos);
+  }
 
   let isCommitted = false;
 
@@ -1160,11 +1141,6 @@ function startInlineEdit(code, clickEvent) {
     pendingInlineEdit = null;
     if (nextEdit) {
       startInlineEdit(nextEdit.code, nextEdit.clickEvent);
-      if (pendingPasteMenu) {
-        const pasteMenuPosition = pendingPasteMenu;
-        pendingPasteMenu = null;
-        showPasteMenu(pasteMenuPosition);
-      }
     }
   };
 
