@@ -291,7 +291,7 @@ function handleInputWithCalcBtn(input, action, value) {
 }
 
 // 輸入框外使用覆蓋模式，輸入框短按則使用插入模式。
-function showPasteButton(position, mode = 'replace') {
+function showPasteButton(position, mode = 'replace', lockMs = 0) {
   document.querySelector('.currency-replace-paste')?.remove();
   const button = document.createElement('button');
   button.type = 'button';
@@ -301,6 +301,11 @@ function showPasteButton(position, mode = 'replace') {
   button.textContent = '貼上';
   button.style.left = `${Math.min(position.clientX, window.innerWidth - 92)}px`;
   button.style.top = `${Math.min(position.clientY, window.innerHeight - 48)}px`;
+  const unlockedAt = Date.now() + lockMs;
+  if (lockMs > 0) {
+    button.classList.add('is-locked');
+    window.setTimeout(() => button.classList.remove('is-locked'), lockMs);
+  }
   document.body.appendChild(button);
 
   const closeButton = () => button.remove();
@@ -309,6 +314,7 @@ function showPasteButton(position, mode = 'replace') {
     e.stopPropagation();
   });
   button.addEventListener('click', async () => {
+    if (Date.now() < unlockedAt) return;
     closeButton();
     const input = document.querySelector('.currency-amount-input');
     if (!input) return;
@@ -1202,10 +1208,8 @@ function startInlineEdit(code, clickEvent) {
       const touch = e.changedTouches[0];
       if (!touch) return;
       const position = { clientX: touch.clientX, clientY: touch.clientY };
-      // 等手指放開 100ms 再顯示；下一次觸碰按鈕才會貼上，避免誤觸。
-      window.setTimeout(() => {
-        if (document.activeElement === input) showPasteButton(position, 'insert');
-      }, 100);
+      // 立即顯示，但先鎖定 100ms；避免同一次放開手指誤觸貼上。
+      showPasteButton(position, 'insert', 100);
     }
   }, { passive: true });
   // 某些 Android WebView 長按會發出 touchcancel；不要取消 500ms 計時。

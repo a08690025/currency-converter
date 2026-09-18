@@ -394,6 +394,7 @@ input { font-family: var(--font); outline: none; border: none; background: trans
 }
 
 .currency-replace-paste:hover { background: var(--op-btn-hover); }
+.currency-replace-paste.is-locked { opacity: 0.55; }
 
 /* 設定下拉選單樣式 */
 .settings-select {
