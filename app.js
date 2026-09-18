@@ -557,7 +557,7 @@ function renderCurrencyList() {
         if (activeInput.closest('.currency-item') === item) {
           if (!e.target.closest('.currency-amount')) {
             activeInput.select();
-            showPasteButtonBelowInput('replace');
+            showPasteButton({ clientX: e.clientX, clientY: e.clientY + 10 }, 'replace');
           }
           activeInput.focus();
           return;
@@ -571,6 +571,7 @@ function renderCurrencyList() {
             useAmountCaret: Boolean(e.target.closest('.currency-amount')),
             selectAll: !e.target.closest('.currency-amount'),
             showPasteButton: !e.target.closest('.currency-amount'),
+            pasteButtonPosition: { clientX: e.clientX, clientY: e.clientY + 10 },
           },
         };
         activeInput.blur();
@@ -581,6 +582,7 @@ function renderCurrencyList() {
           useAmountCaret: Boolean(e.target.closest('.currency-amount')),
           selectAll: !e.target.closest('.currency-amount'),
           showPasteButton: !e.target.closest('.currency-amount'),
+          pasteButtonPosition: { clientX: e.clientX, clientY: e.clientY + 10 },
         });
       }
     });
@@ -1189,7 +1191,9 @@ function startInlineEdit(code, clickEvent) {
   // 點輸入框以外的卡片才全選；點金額輸入框時保留游標以便插入。
   if (clickEvent && clickEvent.selectAll) {
     input.select();
-    if (clickEvent.showPasteButton) showPasteButtonBelowInput('replace');
+    if (clickEvent.showPasteButton) {
+      showPasteButton(clickEvent.pasteButtonPosition || { clientX: 0, clientY: 0 }, 'replace');
+    }
   } else {
     const finalPos = Math.max(0, Math.min(input.value.length, targetCursorPos));
     input.setSelectionRange(finalPos, finalPos);
