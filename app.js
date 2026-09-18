@@ -341,18 +341,6 @@ function showPasteButton(position, mode = 'replace', lockMs = 0) {
   window.setTimeout(() => document.addEventListener('pointerdown', closeButton, { once: true }), 0);
 }
 
-// 輸入框相關的貼上按鈕一律放在框下方，不能遮住可選取的數字。
-function showPasteButtonBelowInput(mode) {
-  const input = document.querySelector('.currency-amount-input');
-  if (!input) return;
-  const rect = input.getBoundingClientRect();
-  showPasteButton({
-    // 按鈕靠輸入框左側顯示，不靠右也不置中。
-    clientX: rect.left,
-    clientY: Math.min(rect.bottom + 10, window.innerHeight - 48),
-  }, mode);
-}
-
 function handleCalcBtn(action, value) {
   // 如果目前正處於「直接點擊數字修改」的編輯框狀態
   // 將計算機面板按鍵導流，直接在輸入框的游標處插入/修改文字，而不是覆蓋
@@ -562,7 +550,7 @@ function renderCurrencyList() {
             && e.clientY >= rect.top - 14 && e.clientY <= rect.bottom + 14;
           if (!isNearInput) {
             activeInput.select();
-            showPasteButtonBelowInput('replace');
+            showPasteButton({ clientX: e.clientX, clientY: e.clientY + 10 }, 'replace');
           }
           activeInput.focus();
           return;
@@ -595,7 +583,7 @@ function renderCurrencyList() {
     item.addEventListener('contextmenu', (e) => {
       if (e.target.closest('.drag-handle') || e.target.closest('.currency-amount-input')) return;
       e.preventDefault();
-      const position = { clientX: e.clientX, clientY: e.clientY };
+      const position = { clientX: e.clientX, clientY: e.clientY + 10 };
       const activeInput = document.querySelector('.currency-amount-input');
       if (activeInput && activeInput.closest('.currency-item') !== item) {
         pendingInlineEdit = { code, clickEvent: { ...position, useAmountCaret: false, selectAll: true } };
@@ -1220,7 +1208,7 @@ function startInlineEdit(code, clickEvent) {
   if (clickEvent && clickEvent.selectAll) {
     input.select();
     if (clickEvent.showPasteButton) {
-      showPasteButtonBelowInput('replace');
+      showPasteButton(clickEvent.pasteButtonPosition || { clientX: 0, clientY: 10 }, 'replace');
     }
   } else {
     const finalPos = Math.max(0, Math.min(input.value.length, targetCursorPos));
@@ -1229,6 +1217,7 @@ function startInlineEdit(code, clickEvent) {
 
   let touchPasteLongPress = false;
   let lastTouchPasteAt = 0;
+  let lastTouchPastePosition = null;
   input.addEventListener('touchstart', (e) => {
     const touch = e.touches[0];
     e.stopPropagation();
@@ -1236,6 +1225,7 @@ function startInlineEdit(code, clickEvent) {
     // 短按游標位置完全交給手機瀏覽器原生處理，準確對應手指位置。
     touchPasteLongPress = false;
     lastTouchPasteAt = Date.now();
+    lastTouchPastePosition = touch ? { clientX: touch.clientX, clientY: touch.clientY + 10 } : null;
     // Android 有時在長按全選後，下一次短按仍保留整段反白。
     // 先讓瀏覽器處理真正觸控游標；若它沒有取消全選，再依觸控位置收回游標。
     window.setTimeout(() => {
@@ -1246,7 +1236,7 @@ function startInlineEdit(code, clickEvent) {
   }, { passive: false });
   input.addEventListener('touchend', () => {
     if (!touchPasteLongPress) {
-      showPasteButtonBelowInput('insert');
+      if (lastTouchPastePosition) showPasteButton(lastTouchPastePosition, 'insert');
     }
   }, { passive: true });
   input.addEventListener('contextmenu', (e) => {
@@ -1256,7 +1246,7 @@ function startInlineEdit(code, clickEvent) {
       e.preventDefault();
       touchPasteLongPress = true;
       input.select();
-      showPasteButtonBelowInput('replace');
+      if (lastTouchPastePosition) showPasteButton(lastTouchPastePosition, 'replace');
     }
   });
 
