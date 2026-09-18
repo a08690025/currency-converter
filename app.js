@@ -290,8 +290,8 @@ function handleInputWithCalcBtn(input, action, value) {
   }
 }
 
-// 只供「輸入框以外」的貨幣列右鍵使用：以貼上按鈕完整覆蓋目前金額。
-function showReplacePasteButton(position) {
+// 輸入框外使用覆蓋模式，輸入框短按則使用插入模式。
+function showPasteButton(position, mode = 'replace') {
   document.querySelector('.currency-replace-paste')?.remove();
   const button = document.createElement('button');
   button.type = 'button';
@@ -314,11 +314,16 @@ function showReplacePasteButton(position) {
     if (!input) return;
     try {
       const text = await navigator.clipboard.readText();
-      input.value = text.replace(/[^0-9.]/g, '');
-      input.setSelectionRange(input.value.length, input.value.length);
+      const pastedText = text.replace(/[^0-9.]/g, '');
+      if (mode === 'insert') {
+        input.setRangeText(pastedText, input.selectionStart, input.selectionEnd, 'end');
+      } else {
+        input.value = pastedText;
+        input.setSelectionRange(input.value.length, input.value.length);
+      }
       input.focus();
     } catch (error) {
-      input.select();
+      if (mode === 'replace') input.select();
       input.focus();
     }
   });
@@ -564,7 +569,7 @@ function renderCurrencyList() {
       } else {
         if (!activeInput) startInlineEdit(code, { ...position, useAmountCaret: false, selectAll: true });
         else activeInput.select();
-        showReplacePasteButton(position);
+        showPasteButton(position, 'replace');
       }
     });
 
@@ -1144,25 +1149,50 @@ function startInlineEdit(code, clickEvent) {
     input.setSelectionRange(finalPos, finalPos);
   }
 
-  // 手機在輸入框內長按時，先依手指位置收合「外框模式」留下的全選範圍。
-  // 不阻擋瀏覽器原生長按選單，讓貼上能插入指定數字中間。
+  // 手機輸入框：短按插入；超過 500ms 長按則全選覆蓋。
   const collapseSelectionAtTouch = (clientX) => {
     const rect = input.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(rect.width, 1)));
     const caretPosition = Math.round(input.value.length * ratio);
     input.setSelectionRange(caretPosition, caretPosition);
   };
+  let touchPasteTimer = null;
+  let touchPasteLongPress = false;
+  let lastTouchPasteAt = 0;
+  const clearTouchPasteTimer = () => {
+    if (touchPasteTimer !== null) window.clearTimeout(touchPasteTimer);
+    touchPasteTimer = null;
+  };
   input.addEventListener('pointerdown', (e) => {
     if (e.pointerType !== 'touch') return;
+    e.preventDefault();
     e.stopPropagation();
+    input.focus();
     collapseSelectionAtTouch(e.clientX);
+    touchPasteLongPress = false;
+    lastTouchPasteAt = Date.now();
+    clearTouchPasteTimer();
+    const position = { clientX: e.clientX, clientY: e.clientY };
+    touchPasteTimer = window.setTimeout(() => {
+      touchPasteLongPress = true;
+      input.select();
+      showPasteButton(position, 'replace');
+    }, 500);
   });
-  if (!window.PointerEvent) {
-    input.addEventListener('touchstart', (e) => {
-      const touch = e.touches[0];
-      if (touch) collapseSelectionAtTouch(touch.clientX);
-    }, { passive: true });
-  }
+  input.addEventListener('pointerup', (e) => {
+    if (e.pointerType !== 'touch') return;
+    e.preventDefault();
+    clearTouchPasteTimer();
+    if (!touchPasteLongPress) {
+      collapseSelectionAtTouch(e.clientX);
+      showPasteButton({ clientX: e.clientX, clientY: e.clientY }, 'insert');
+    }
+  });
+  input.addEventListener('pointercancel', clearTouchPasteTimer);
+  input.addEventListener('contextmenu', (e) => {
+    // 觸控長按改由上方 500ms 計時器處理；滑鼠右鍵仍維持瀏覽器原生選單。
+    if (Date.now() - lastTouchPasteAt < 1200) e.preventDefault();
+  });
 
   let isCommitted = false;
 
@@ -1198,7 +1228,7 @@ function startInlineEdit(code, clickEvent) {
       if (pendingPasteButton) {
         const pasteButtonPosition = pendingPasteButton;
         pendingPasteButton = null;
-        showReplacePasteButton(pasteButtonPosition);
+        showPasteButton(pasteButtonPosition, 'replace');
       }
     }
   };
