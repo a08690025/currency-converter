@@ -336,6 +336,17 @@ function showPasteButton(position, mode = 'replace', lockMs = 0) {
   window.setTimeout(() => document.addEventListener('pointerdown', closeButton, { once: true }), 0);
 }
 
+// 輸入框相關的貼上按鈕一律放在框下方，不能遮住可選取的數字。
+function showPasteButtonBelowInput(mode) {
+  const input = document.querySelector('.currency-amount-input');
+  if (!input) return;
+  const rect = input.getBoundingClientRect();
+  showPasteButton({
+    clientX: rect.right - 76,
+    clientY: Math.min(rect.bottom + 10, window.innerHeight - 48),
+  }, mode);
+}
+
 function handleCalcBtn(action, value) {
   // 如果目前正處於「直接點擊數字修改」的編輯框狀態
   // 將計算機面板按鍵導流，直接在輸入框的游標處插入/修改文字，而不是覆蓋
@@ -539,6 +550,10 @@ function renderCurrencyList() {
       const activeInput = document.querySelector('.currency-amount-input');
       if (activeInput) {
         if (activeInput.closest('.currency-item') === item) {
+          if (!e.target.closest('.currency-amount')) {
+            activeInput.select();
+            showPasteButtonBelowInput('replace');
+          }
           activeInput.focus();
           return;
         }
@@ -550,6 +565,7 @@ function renderCurrencyList() {
             clientY: e.clientY,
             useAmountCaret: Boolean(e.target.closest('.currency-amount')),
             selectAll: !e.target.closest('.currency-amount'),
+            showPasteButton: !e.target.closest('.currency-amount'),
           },
         };
         activeInput.blur();
@@ -559,6 +575,7 @@ function renderCurrencyList() {
           clientY: e.clientY,
           useAmountCaret: Boolean(e.target.closest('.currency-amount')),
           selectAll: !e.target.closest('.currency-amount'),
+          showPasteButton: !e.target.closest('.currency-amount'),
         });
       }
     });
@@ -1156,6 +1173,7 @@ function startInlineEdit(code, clickEvent) {
   // 點輸入框以外的卡片才全選；點金額輸入框時保留游標以便插入。
   if (clickEvent && clickEvent.selectAll) {
     input.select();
+    if (clickEvent.showPasteButton) showPasteButtonBelowInput('replace');
   } else {
     const finalPos = Math.max(0, Math.min(input.value.length, targetCursorPos));
     input.setSelectionRange(finalPos, finalPos);
@@ -1177,25 +1195,16 @@ function startInlineEdit(code, clickEvent) {
     touchPasteLongPress = false;
     lastTouchPasteAt = Date.now();
     clearTouchPasteTimer();
-    const position = { clientX: touch.clientX, clientY: touch.clientY };
     touchPasteTimer = window.setTimeout(() => {
       touchPasteLongPress = true;
       input.select();
-      showPasteButton(position, 'replace');
+      showPasteButtonBelowInput('replace');
     }, 500);
   }, { passive: false });
   input.addEventListener('touchend', (e) => {
     clearTouchPasteTimer();
     if (!touchPasteLongPress) {
-      const touch = e.changedTouches[0];
-      if (!touch) return;
-      const rect = input.getBoundingClientRect();
-      // 短按的按鈕固定放在輸入框下方，避開數字本體，方便再點其他位數。
-      const position = {
-        clientX: rect.right - 76,
-        clientY: Math.min(rect.bottom + 10, window.innerHeight - 48),
-      };
-      showPasteButton(position, 'insert');
+      showPasteButtonBelowInput('insert');
     }
   }, { passive: true });
   // 某些 Android WebView 長按會發出 touchcancel；不要取消 500ms 計時。
