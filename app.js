@@ -1144,6 +1144,26 @@ function startInlineEdit(code, clickEvent) {
     input.setSelectionRange(finalPos, finalPos);
   }
 
+  // 手機在輸入框內長按時，先依手指位置收合「外框模式」留下的全選範圍。
+  // 不阻擋瀏覽器原生長按選單，讓貼上能插入指定數字中間。
+  const collapseSelectionAtTouch = (clientX) => {
+    const rect = input.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(rect.width, 1)));
+    const caretPosition = Math.round(input.value.length * ratio);
+    input.setSelectionRange(caretPosition, caretPosition);
+  };
+  input.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'touch') return;
+    e.stopPropagation();
+    collapseSelectionAtTouch(e.clientX);
+  });
+  if (!window.PointerEvent) {
+    input.addEventListener('touchstart', (e) => {
+      const touch = e.touches[0];
+      if (touch) collapseSelectionAtTouch(touch.clientX);
+    }, { passive: true });
+  }
+
   let isCommitted = false;
 
   const commitEdit = () => {
