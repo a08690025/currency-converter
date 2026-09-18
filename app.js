@@ -297,6 +297,11 @@ function handleInputWithCalcBtn(input, action, value) {
 // 輸入框外使用覆蓋模式，輸入框短按則使用插入模式。
 function showPasteButton(position, mode = 'replace', lockMs = 0) {
   document.querySelector('.currency-replace-paste')?.remove();
+  // 按鈕出現後的觸控可能會讓 Android 把游標移到末端；先記住原始插入點。
+  const activeInput = document.querySelector('.currency-amount-input');
+  const insertionRange = mode === 'insert' && activeInput
+    ? { start: activeInput.selectionStart, end: activeInput.selectionEnd }
+    : null;
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'currency-replace-paste';
@@ -326,7 +331,9 @@ function showPasteButton(position, mode = 'replace', lockMs = 0) {
       const text = await navigator.clipboard.readText();
       const pastedText = text.replace(/[^0-9.]/g, '');
       if (mode === 'insert') {
-        input.setRangeText(pastedText, input.selectionStart, input.selectionEnd, 'end');
+        const start = insertionRange ? insertionRange.start : input.selectionStart;
+        const end = insertionRange ? insertionRange.end : input.selectionEnd;
+        input.setRangeText(pastedText, start, end, 'end');
       } else {
         input.value = pastedText;
         input.setSelectionRange(input.value.length, input.value.length);
