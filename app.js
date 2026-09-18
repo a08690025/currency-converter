@@ -1129,6 +1129,9 @@ function startInlineEdit(code, clickEvent) {
   input.type = 'text';
   input.inputMode = 'none';
   input.className = 'currency-amount-input';
+  // 輸入框只覆蓋實際數字寬度。不可用固定 150px，否則視覺上的空白處
+  // 仍會被當成輸入框，手機就會把游標放到數字最左邊而不是全選。
+  input.style.width = `${Math.ceil(amountEl.getBoundingClientRect().width + 8)}px`;
   
   // 獲取目前畫面上顯示的數值，去除千分位逗號
   // 這能保證使用者點擊 "102.0" 編輯時就是 "102.0"，而不會跑出後台未格式化的 "102.0410632"
