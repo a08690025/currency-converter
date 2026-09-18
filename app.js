@@ -1152,8 +1152,24 @@ function startInlineEdit(code, clickEvent) {
   // 手機輸入框：短按插入；超過 500ms 長按則全選覆蓋。
   const collapseSelectionAtTouch = (clientX) => {
     const rect = input.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(rect.width, 1)));
-    const caretPosition = Math.round(input.value.length * ratio);
+    const style = window.getComputedStyle(input);
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    context.font = `${style.fontStyle} ${style.fontVariant} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+
+    // 金額是靠右顯示，需從實際文字起點，而不是整個 150px 輸入框來換算游標。
+    const text = input.value;
+    const paddingRight = Number.parseFloat(style.paddingRight) || 0;
+    const textWidth = context.measureText(text).width;
+    const textStart = rect.right - paddingRight - textWidth + input.scrollLeft;
+    const touchX = Math.max(0, clientX - textStart);
+    let caretPosition = 0;
+    let measuredWidth = 0;
+    for (let index = 0; index < text.length; index += 1) {
+      const charWidth = context.measureText(text[index]).width;
+      if (touchX >= measuredWidth + charWidth / 2) caretPosition = index + 1;
+      measuredWidth += charWidth;
+    }
     input.setSelectionRange(caretPosition, caretPosition);
   };
   let touchPasteTimer = null;
@@ -1182,7 +1198,15 @@ function startInlineEdit(code, clickEvent) {
   }, { passive: false });
   input.addEventListener('touchend', (e) => {
     clearTouchPasteTimer();
-    // 短按只定位游標，不顯示貼上按鈕，避免手指放開時誤觸。
+    if (!touchPasteLongPress) {
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+      const position = { clientX: touch.clientX, clientY: touch.clientY };
+      // 等手指放開 100ms 再顯示；下一次觸碰按鈕才會貼上，避免誤觸。
+      window.setTimeout(() => {
+        if (document.activeElement === input) showPasteButton(position, 'insert');
+      }, 100);
+    }
   }, { passive: true });
   // 某些 Android WebView 長按會發出 touchcancel；不要取消 500ms 計時。
   input.addEventListener('touchcancel', () => {});
