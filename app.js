@@ -579,6 +579,7 @@ function renderCurrencyList() {
       e.preventDefault();
       e.stopPropagation();
       clearPendingPasteButton();
+      const isAmountTarget = Boolean(e.target.closest('.currency-amount'));
 
       // 從一張正在編輯的卡片點到另一張時，舊 input 的 blur 會先重繪清單。
       // 把「開啟下一列輸入」交給 blur 完成後處理，避免第一下只提交舊輸入。
@@ -602,11 +603,13 @@ function renderCurrencyList() {
           clickEvent: {
             clientX: e.clientX,
             clientY: e.clientY,
-            useAmountCaret: Boolean(e.target.closest('.currency-amount')),
-            selectAll: !e.target.closest('.currency-amount'),
-            showPasteButton: !e.target.closest('.currency-amount'),
+            useAmountCaret: isAmountTarget,
+            selectAll: !isAmountTarget,
+            // 切換到另一列數字區的第一下，也直接提供插入貼上。
+            showPasteButton: true,
+            pasteMode: isAmountTarget ? 'insert' : 'replace',
             pasteButtonPosition: { clientX: e.clientX, clientY: e.clientY + 10 },
-            pasteButtonDelay: 200,
+            pasteButtonDelay: isAmountTarget ? 0 : 200,
           },
         };
         activeInput.blur();
@@ -614,11 +617,12 @@ function renderCurrencyList() {
         startInlineEdit(code, {
           clientX: e.clientX,
           clientY: e.clientY,
-          useAmountCaret: Boolean(e.target.closest('.currency-amount')),
-          selectAll: !e.target.closest('.currency-amount'),
-          showPasteButton: !e.target.closest('.currency-amount'),
+          useAmountCaret: isAmountTarget,
+          selectAll: !isAmountTarget,
+          showPasteButton: true,
+          pasteMode: isAmountTarget ? 'insert' : 'replace',
           pasteButtonPosition: { clientX: e.clientX, clientY: e.clientY + 10 },
-          pasteButtonDelay: 200,
+          pasteButtonDelay: isAmountTarget ? 0 : 200,
         });
       }
     });
@@ -1256,16 +1260,15 @@ function startInlineEdit(code, clickEvent) {
   // 點輸入框以外的卡片才全選；點金額輸入框時保留游標以便插入。
   if (clickEvent && clickEvent.selectAll) {
     input.select();
-    if (clickEvent.showPasteButton) {
-      schedulePasteButton(
-        clickEvent.pasteButtonPosition || { clientX: 0, clientY: 10 },
-        'replace',
-        clickEvent.pasteButtonDelay || 0
-      );
-    }
   } else {
     const finalPos = Math.max(0, Math.min(input.value.length, targetCursorPos));
     input.setSelectionRange(finalPos, finalPos);
+  }
+  if (clickEvent && clickEvent.showPasteButton) {
+    const pastePosition = clickEvent.pasteMode === 'insert'
+      ? { clientX: clickEvent.clientX, clientY: Math.min(input.getBoundingClientRect().bottom + 10, window.innerHeight - 48) }
+      : (clickEvent.pasteButtonPosition || { clientX: 0, clientY: 10 });
+    schedulePasteButton(pastePosition, clickEvent.pasteMode || 'replace', clickEvent.pasteButtonDelay || 0);
   }
 
   let touchPasteLongPress = false;
