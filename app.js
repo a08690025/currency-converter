@@ -347,7 +347,8 @@ function showPasteButtonBelowInput(mode) {
   if (!input) return;
   const rect = input.getBoundingClientRect();
   showPasteButton({
-    clientX: rect.right - 76,
+    // 按鈕置中於輸入框下方，不再貼齊右側。
+    clientX: rect.left + (rect.width - 76) / 2,
     clientY: Math.min(rect.bottom + 10, window.innerHeight - 48),
   }, mode);
 }
