@@ -1155,29 +1155,6 @@ function startInlineEdit(code, clickEvent) {
     input.setSelectionRange(finalPos, finalPos);
   }
 
-  // 手機輸入框：短按插入；超過 500ms 長按則全選覆蓋。
-  const collapseSelectionAtTouch = (clientX) => {
-    const rect = input.getBoundingClientRect();
-    const style = window.getComputedStyle(input);
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    context.font = `${style.fontStyle} ${style.fontVariant} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-
-    // 金額是靠右顯示，需從實際文字起點，而不是整個 150px 輸入框來換算游標。
-    const text = input.value;
-    const paddingRight = Number.parseFloat(style.paddingRight) || 0;
-    const textWidth = context.measureText(text).width;
-    const textStart = rect.right - paddingRight - textWidth + input.scrollLeft;
-    const touchX = Math.max(0, clientX - textStart);
-    let caretPosition = 0;
-    let measuredWidth = 0;
-    for (let index = 0; index < text.length; index += 1) {
-      const charWidth = context.measureText(text[index]).width;
-      if (touchX >= measuredWidth + charWidth / 2) caretPosition = index + 1;
-      measuredWidth += charWidth;
-    }
-    input.setSelectionRange(caretPosition, caretPosition);
-  };
   let touchPasteTimer = null;
   let touchPasteLongPress = false;
   let lastTouchPasteAt = 0;
@@ -1188,10 +1165,9 @@ function startInlineEdit(code, clickEvent) {
   input.addEventListener('touchstart', (e) => {
     const touch = e.touches[0];
     if (!touch) return;
-    e.preventDefault();
     e.stopPropagation();
     input.focus();
-    collapseSelectionAtTouch(touch.clientX);
+    // 短按游標位置完全交給手機瀏覽器原生處理，準確對應手指位置。
     touchPasteLongPress = false;
     lastTouchPasteAt = Date.now();
     clearTouchPasteTimer();
@@ -1213,8 +1189,7 @@ function startInlineEdit(code, clickEvent) {
         clientX: rect.right - 76,
         clientY: Math.min(rect.bottom + 10, window.innerHeight - 48),
       };
-      // 立即顯示，但先鎖定 100ms；避免同一次放開手指誤觸貼上。
-      showPasteButton(position, 'insert', 100);
+      showPasteButton(position, 'insert');
     }
   }, { passive: true });
   // 某些 Android WebView 長按會發出 touchcancel；不要取消 500ms 計時。
