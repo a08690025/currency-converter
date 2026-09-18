@@ -575,7 +575,9 @@ function renderCurrencyList() {
             && e.clientY >= rect.top - 14 && e.clientY <= rect.bottom + 14;
           if (!isNearInput) {
             activeInput.select();
-            showPasteButton({ clientX: e.clientX, clientY: e.clientY + 10 }, 'replace');
+            window.setTimeout(() => {
+              showPasteButton({ clientX: e.clientX, clientY: e.clientY + 10 }, 'replace');
+            }, 200);
           }
           activeInput.focus();
           return;
@@ -590,6 +592,7 @@ function renderCurrencyList() {
             selectAll: !e.target.closest('.currency-amount'),
             showPasteButton: !e.target.closest('.currency-amount'),
             pasteButtonPosition: { clientX: e.clientX, clientY: e.clientY + 10 },
+            pasteButtonDelay: 200,
           },
         };
         activeInput.blur();
@@ -601,6 +604,7 @@ function renderCurrencyList() {
           selectAll: !e.target.closest('.currency-amount'),
           showPasteButton: !e.target.closest('.currency-amount'),
           pasteButtonPosition: { clientX: e.clientX, clientY: e.clientY + 10 },
+          pasteButtonDelay: 200,
         });
       }
     });
@@ -1239,7 +1243,9 @@ function startInlineEdit(code, clickEvent) {
   if (clickEvent && clickEvent.selectAll) {
     input.select();
     if (clickEvent.showPasteButton) {
-      showPasteButton(clickEvent.pasteButtonPosition || { clientX: 0, clientY: 10 }, 'replace');
+      window.setTimeout(() => {
+        showPasteButton(clickEvent.pasteButtonPosition || { clientX: 0, clientY: 10 }, 'replace');
+      }, clickEvent.pasteButtonDelay || 0);
     }
   } else {
     const finalPos = Math.max(0, Math.min(input.value.length, targetCursorPos));
