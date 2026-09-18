@@ -1211,6 +1211,13 @@ function startInlineEdit(code, clickEvent) {
     // 短按游標位置完全交給手機瀏覽器原生處理，準確對應手指位置。
     touchPasteLongPress = false;
     lastTouchPasteAt = Date.now();
+    // Android 有時在長按全選後，下一次短按仍保留整段反白。
+    // 先讓瀏覽器處理真正觸控游標；若它沒有取消全選，再收回成單一游標。
+    window.setTimeout(() => {
+      if (input.value.length > 0 && input.selectionStart === 0 && input.selectionEnd === input.value.length) {
+        input.setSelectionRange(input.value.length, input.value.length);
+      }
+    }, 0);
   }, { passive: false });
   input.addEventListener('touchend', () => {
     if (!touchPasteLongPress) {
