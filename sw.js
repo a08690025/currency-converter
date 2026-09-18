@@ -1,6 +1,6 @@
 // 更新網站檔案時請提高這個版本，讓已安裝的 PWA 取得新版快取。
 const CACHE_NAME = 'currency-converter-v10';
-const RELEASE_REVISION = '20260918-input-guard';
+const RELEASE_REVISION = '20260918-repeat-blank-paste';
 const CACHE_NAMES_TO_RESET = ['currency-converter-v10', 'currency-converter-v11'];
 const ASSETS = [
   './',

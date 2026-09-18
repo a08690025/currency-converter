@@ -555,8 +555,14 @@ function renderCurrencyList() {
       const activeInput = document.querySelector('.currency-amount-input');
       if (activeInput) {
         if (activeInput.closest('.currency-item') === item) {
-          // 已開啟同一列輸入框時，數字邊緣或選取把手附近的觸控不可當成空白處。
-          // 只保持既有插入狀態，避免一點偏就跳出「空白處貼上」。
+          // 只保護數字與選取把手周圍，其他真正的空白處可重複叫出貼上按鈕。
+          const rect = activeInput.getBoundingClientRect();
+          const isNearInput = e.clientX >= rect.left - 14 && e.clientX <= rect.right + 14
+            && e.clientY >= rect.top - 14 && e.clientY <= rect.bottom + 14;
+          if (!isNearInput) {
+            activeInput.select();
+            showPasteButton({ clientX: e.clientX, clientY: e.clientY + 10 }, 'replace');
+          }
           activeInput.focus();
           return;
         }
@@ -1174,7 +1180,7 @@ function startInlineEdit(code, clickEvent) {
   measureContext.font = `${amountStyle.fontWeight} ${amountStyle.fontSize} ${amountStyle.fontFamily}`;
   const resizeInputWidth = () => {
     const textWidth = measureContext.measureText(input.value || '0').width;
-    input.style.width = `${Math.ceil(Math.max(amountWidth, textWidth) + 8)}px`;
+    input.style.width = `${Math.ceil(Math.max(amountWidth, textWidth) + 14)}px`;
   };
   input.resizeCurrencyAmountInput = resizeInputWidth;
   input.addEventListener('input', resizeInputWidth);
