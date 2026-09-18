@@ -1186,6 +1186,29 @@ function startInlineEdit(code, clickEvent) {
   input.addEventListener('input', resizeInputWidth);
   resizeInputWidth();
 
+  // 手機在「長按全選」後可能不肯把下一次短按交給原生游標。
+  // 以輸入框自己的實際字型與文字寬度換算，讓第一下就落在手指的位置。
+  const setCaretAtTouchX = (clientX) => {
+    const text = input.value;
+    if (!text) return input.setSelectionRange(0, 0);
+    const rect = input.getBoundingClientRect();
+    const inputStyle = window.getComputedStyle(input);
+    const paddingRight = Number.parseFloat(inputStyle.paddingRight) || 0;
+    const textWidth = measureContext.measureText(text).width;
+    const textLeft = rect.right - paddingRight - textWidth;
+    let nearest = 0;
+    let nearestDistance = Infinity;
+    for (let index = 0; index <= text.length; index++) {
+      const boundary = textLeft + measureContext.measureText(text.slice(0, index)).width;
+      const distance = Math.abs(clientX - boundary);
+      if (distance < nearestDistance) {
+        nearest = index;
+        nearestDistance = distance;
+      }
+    }
+    input.setSelectionRange(nearest, nearest);
+  };
+
   // 將輸入框插入到原本金額標籤的前方
   amountEl.parentNode.insertBefore(input, amountEl);
   
@@ -1206,16 +1229,17 @@ function startInlineEdit(code, clickEvent) {
   let touchPasteLongPress = false;
   let lastTouchPasteAt = 0;
   input.addEventListener('touchstart', (e) => {
+    const touch = e.touches[0];
     e.stopPropagation();
     input.focus();
     // 短按游標位置完全交給手機瀏覽器原生處理，準確對應手指位置。
     touchPasteLongPress = false;
     lastTouchPasteAt = Date.now();
     // Android 有時在長按全選後，下一次短按仍保留整段反白。
-    // 先讓瀏覽器處理真正觸控游標；若它沒有取消全選，再收回成單一游標。
+    // 先讓瀏覽器處理真正觸控游標；若它沒有取消全選，再依觸控位置收回游標。
     window.setTimeout(() => {
       if (input.value.length > 0 && input.selectionStart === 0 && input.selectionEnd === input.value.length) {
-        input.setSelectionRange(input.value.length, input.value.length);
+        setCaretAtTouchX(touch ? touch.clientX : input.getBoundingClientRect().right);
       }
     }, 0);
   }, { passive: false });
