@@ -80,11 +80,26 @@ let state = {
 // 在舊輸入框 blur 重繪清單後，接續完成使用者的第一次點擊。
 let pendingInlineEdit = null;
 let pendingPasteButton = null;
+let pendingPasteDisplayTimer = null;
 
 /* ===========================
    工具函式
    =========================== */
 function $(id) { return document.getElementById(id); }
+
+function clearPendingPasteButton() {
+  if (pendingPasteDisplayTimer !== null) window.clearTimeout(pendingPasteDisplayTimer);
+  pendingPasteDisplayTimer = null;
+  document.querySelector('.currency-replace-paste')?.remove();
+}
+
+function schedulePasteButton(position, mode, delay = 0) {
+  clearPendingPasteButton();
+  pendingPasteDisplayTimer = window.setTimeout(() => {
+    pendingPasteDisplayTimer = null;
+    showPasteButton(position, mode);
+  }, delay);
+}
 
 function saveState() {
   try {
@@ -563,6 +578,7 @@ function renderCurrencyList() {
 
       e.preventDefault();
       e.stopPropagation();
+      clearPendingPasteButton();
 
       // 從一張正在編輯的卡片點到另一張時，舊 input 的 blur 會先重繪清單。
       // 把「開啟下一列輸入」交給 blur 完成後處理，避免第一下只提交舊輸入。
@@ -575,9 +591,7 @@ function renderCurrencyList() {
             && e.clientY >= rect.top - 14 && e.clientY <= rect.bottom + 14;
           if (!isNearInput) {
             activeInput.select();
-            window.setTimeout(() => {
-              showPasteButton({ clientX: e.clientX, clientY: e.clientY + 10 }, 'replace');
-            }, 200);
+            schedulePasteButton({ clientX: e.clientX, clientY: e.clientY + 10 }, 'replace', 200);
           }
           activeInput.focus();
           return;
@@ -1243,9 +1257,11 @@ function startInlineEdit(code, clickEvent) {
   if (clickEvent && clickEvent.selectAll) {
     input.select();
     if (clickEvent.showPasteButton) {
-      window.setTimeout(() => {
-        showPasteButton(clickEvent.pasteButtonPosition || { clientX: 0, clientY: 10 }, 'replace');
-      }, clickEvent.pasteButtonDelay || 0);
+      schedulePasteButton(
+        clickEvent.pasteButtonPosition || { clientX: 0, clientY: 10 },
+        'replace',
+        clickEvent.pasteButtonDelay || 0
+      );
     }
   } else {
     const finalPos = Math.max(0, Math.min(input.value.length, targetCursorPos));
@@ -1258,6 +1274,7 @@ function startInlineEdit(code, clickEvent) {
   input.addEventListener('touchstart', (e) => {
     const touch = e.touches[0];
     e.stopPropagation();
+    clearPendingPasteButton();
     input.focus();
     // 短按游標位置完全交給手機瀏覽器原生處理，準確對應手指位置。
     touchPasteLongPress = false;
@@ -1277,7 +1294,7 @@ function startInlineEdit(code, clickEvent) {
   }, { passive: false });
   input.addEventListener('touchend', () => {
     if (!touchPasteLongPress) {
-      if (lastTouchPastePosition) showPasteButton(lastTouchPastePosition, 'insert');
+      if (lastTouchPastePosition) schedulePasteButton(lastTouchPastePosition, 'insert');
     }
   }, { passive: true });
   input.addEventListener('contextmenu', (e) => {
@@ -1287,7 +1304,7 @@ function startInlineEdit(code, clickEvent) {
       e.preventDefault();
       touchPasteLongPress = true;
       input.select();
-      if (lastTouchPastePosition) showPasteButton(lastTouchPastePosition, 'replace');
+      if (lastTouchPastePosition) schedulePasteButton(lastTouchPastePosition, 'replace');
     }
   });
 
