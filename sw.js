@@ -13,7 +13,7 @@ const ASSETS = [
 // 安裝 Service Worker 並快取資源
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    // v10 名稱曾用於舊版；先移除舊 v10/v11，再用目前資產重建 v10。
+    // 整列輸入測試版：保留 v10 名稱，重新建立快取以取得最新 app.js。
     Promise.all(CACHE_NAMES_TO_RESET.map((name) => caches.delete(name)))
       .then(() => caches.open(CACHE_NAME))
       .then((cache) => cache.addAll(ASSETS))

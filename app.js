@@ -79,7 +79,7 @@ let state = {
 
 // 在舊輸入框 blur 重繪清單後，接續完成使用者的第一次點擊。
 let pendingInlineEdit = null;
-let pendingCurrencySelect = null;
+let pendingPasteMenu = null;
 
 /* ===========================
    工具函式
@@ -290,6 +290,37 @@ function handleInputWithCalcBtn(input, action, value) {
   }
 }
 
+// 桌面版：在貨幣列按右鍵時提供貼上。手機仍可使用輸入框原生長按貼上。
+function showPasteMenu(position) {
+  document.querySelector('.currency-paste-menu')?.remove();
+  const menu = document.createElement('button');
+  menu.type = 'button';
+  menu.className = 'currency-paste-menu';
+  menu.textContent = '貼上';
+  menu.style.left = `${Math.min(position.clientX, window.innerWidth - 92)}px`;
+  menu.style.top = `${Math.min(position.clientY, window.innerHeight - 48)}px`;
+  document.body.appendChild(menu);
+  const closeMenu = () => menu.remove();
+  menu.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  menu.addEventListener('click', async () => {
+    closeMenu();
+    const input = document.querySelector('.currency-amount-input');
+    if (!input) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      input.setRangeText(text.replace(/[^0-9.]/g, ''), input.selectionStart, input.selectionEnd, 'end');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.focus();
+    } catch (error) {
+      input.focus();
+    }
+  });
+  window.setTimeout(() => document.addEventListener('pointerdown', closeMenu, { once: true }), 0);
+}
+
 function handleCalcBtn(action, value) {
   // 如果目前正處於「直接點擊數字修改」的編輯框狀態
   // 將計算機面板按鍵導流，直接在輸入框的游標處插入/修改文字，而不是覆蓋
@@ -479,41 +510,50 @@ function renderCurrencyList() {
       </div>
     `;
 
-    // 點選貨幣 → 切換為輸入目標（排除點擊拖曳把手與點擊數字區域的狀況）
+    // 點選整張貨幣卡就能直接輸入（拖曳把手除外）。
+    // 這樣不必特地點最右側的金額，點旗幟、代碼或空白處後即可貼上數字。
     item.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('.drag-handle') || e.target.closest('.currency-amount') || e.target.closest('.currency-amount-input')) return;
-
-      const activeInput = document.querySelector('.currency-amount-input');
-      if (!activeInput) return;
-
+      if (e.target.closest('.drag-handle') || e.target.closest('.currency-amount-input')) return;
       if (e.button !== undefined && e.button !== 0) return;
-      e.preventDefault();
-      e.stopPropagation();
-      pendingCurrencySelect = code;
-      activeInput.blur();
-    });
 
-    item.addEventListener('click', (e) => {
-      if (e.target.closest('.drag-handle') || e.target.closest('.currency-amount') || e.target.closest('.currency-amount-input')) return;
-      selectCurrency(code);
-    });
-
-    // 點選數字區域 → 直接從點擊位置開始修改數字。
-    const amountEl = item.querySelector('.currency-amount');
-    amountEl.addEventListener('pointerdown', (e) => {
-      if (e.button !== undefined && e.button !== 0) return;
       e.preventDefault();
       e.stopPropagation();
 
+      // 從一張正在編輯的卡片點到另一張時，舊 input 的 blur 會先重繪清單。
+      // 把「開啟下一列輸入」交給 blur 完成後處理，避免第一下只提交舊輸入。
       const activeInput = document.querySelector('.currency-amount-input');
       if (activeInput) {
+        if (activeInput.closest('.currency-item') === item) {
+          activeInput.focus();
+          return;
+        }
+
         pendingInlineEdit = {
           code,
-          clickEvent: { clientX: e.clientX, clientY: e.clientY },
+          clickEvent: {
+            clientX: e.clientX,
+            clientY: e.clientY,
+            useAmountCaret: Boolean(e.target.closest('.currency-amount')),
+          },
         };
         activeInput.blur();
       } else {
         startInlineEdit(code, e);
+      }
+    });
+
+    item.addEventListener('contextmenu', (e) => {
+      if (e.target.closest('.drag-handle') || e.target.closest('.currency-amount-input')) return;
+      e.preventDefault();
+      const position = { clientX: e.clientX, clientY: e.clientY };
+      const activeInput = document.querySelector('.currency-amount-input');
+      if (activeInput && activeInput.closest('.currency-item') !== item) {
+        pendingInlineEdit = { code, clickEvent: { ...position, useAmountCaret: false } };
+        pendingPasteMenu = position;
+        activeInput.blur();
+      } else {
+        if (!activeInput) startInlineEdit(code, { ...position, useAmountCaret: false });
+        showPasteMenu(position);
       }
     });
 
@@ -1028,7 +1068,10 @@ function startInlineEdit(code, clickEvent) {
 
   // 計算點擊處在 formattedText ("1,234.56") 中的字元偏移量
   let caretOffset = amountEl.textContent.length; // 預設放在最後
-  if (clickEvent && (document.caretRangeFromPoint || document.caretPositionFromPoint)) {
+  const useAmountCaret = Boolean(
+    clickEvent && (clickEvent.useAmountCaret || (clickEvent.target && clickEvent.target.closest('.currency-amount')))
+  );
+  if (useAmountCaret && (document.caretRangeFromPoint || document.caretPositionFromPoint)) {
     let range;
     if (document.caretRangeFromPoint) {
       range = document.caretRangeFromPoint(clickEvent.clientX, clickEvent.clientY);
@@ -1115,12 +1158,13 @@ function startInlineEdit(code, clickEvent) {
 
     const nextEdit = pendingInlineEdit;
     pendingInlineEdit = null;
-    const nextSelection = pendingCurrencySelect;
-    pendingCurrencySelect = null;
     if (nextEdit) {
       startInlineEdit(nextEdit.code, nextEdit.clickEvent);
-    } else if (nextSelection) {
-      selectCurrency(nextSelection);
+      if (pendingPasteMenu) {
+        const pasteMenuPosition = pendingPasteMenu;
+        pendingPasteMenu = null;
+        showPasteMenu(pasteMenuPosition);
+      }
     }
   };
 
