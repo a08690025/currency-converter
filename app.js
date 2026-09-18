@@ -1163,32 +1163,29 @@ function startInlineEdit(code, clickEvent) {
     if (touchPasteTimer !== null) window.clearTimeout(touchPasteTimer);
     touchPasteTimer = null;
   };
-  input.addEventListener('pointerdown', (e) => {
-    if (e.pointerType !== 'touch') return;
+  input.addEventListener('touchstart', (e) => {
+    const touch = e.touches[0];
+    if (!touch) return;
     e.preventDefault();
     e.stopPropagation();
     input.focus();
-    collapseSelectionAtTouch(e.clientX);
+    collapseSelectionAtTouch(touch.clientX);
     touchPasteLongPress = false;
     lastTouchPasteAt = Date.now();
     clearTouchPasteTimer();
-    const position = { clientX: e.clientX, clientY: e.clientY };
+    const position = { clientX: touch.clientX, clientY: touch.clientY };
     touchPasteTimer = window.setTimeout(() => {
       touchPasteLongPress = true;
       input.select();
       showPasteButton(position, 'replace');
     }, 500);
-  });
-  input.addEventListener('pointerup', (e) => {
-    if (e.pointerType !== 'touch') return;
-    e.preventDefault();
+  }, { passive: false });
+  input.addEventListener('touchend', (e) => {
     clearTouchPasteTimer();
-    if (!touchPasteLongPress) {
-      collapseSelectionAtTouch(e.clientX);
-      showPasteButton({ clientX: e.clientX, clientY: e.clientY }, 'insert');
-    }
-  });
-  input.addEventListener('pointercancel', clearTouchPasteTimer);
+    // 短按只定位游標，不顯示貼上按鈕，避免手指放開時誤觸。
+  }, { passive: true });
+  // 某些 Android WebView 長按會發出 touchcancel；不要取消 500ms 計時。
+  input.addEventListener('touchcancel', () => {});
   input.addEventListener('contextmenu', (e) => {
     // 觸控長按改由上方 500ms 計時器處理；滑鼠右鍵仍維持瀏覽器原生選單。
     if (Date.now() - lastTouchPasteAt < 1200) e.preventDefault();
