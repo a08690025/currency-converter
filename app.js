@@ -290,16 +290,16 @@ function handleInputWithCalcBtn(input, action, value) {
   }
 }
 
-// 只供「輸入框以外」的貨幣列右鍵使用：以圖示按鈕完整覆蓋目前金額。
+// 只供「輸入框以外」的貨幣列右鍵使用：以貼上按鈕完整覆蓋目前金額。
 function showReplacePasteButton(position) {
   document.querySelector('.currency-replace-paste')?.remove();
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'currency-replace-paste';
-  button.setAttribute('aria-label', '貼上並覆蓋數字');
+  button.setAttribute('aria-label', '貼上');
   button.title = '貼上並覆蓋數字';
-  button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l1 2h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3l1-2Zm0 4H5v12h14V7h-4.3l-1-2H10.3L9 7Zm1 4h6v2h-6v-2Zm0 4h4v2h-4v-2Z"/></svg>';
-  button.style.left = `${Math.min(position.clientX, window.innerWidth - 48)}px`;
+  button.textContent = '貼上';
+  button.style.left = `${Math.min(position.clientX, window.innerWidth - 92)}px`;
   button.style.top = `${Math.min(position.clientY, window.innerHeight - 48)}px`;
   document.body.appendChild(button);
 

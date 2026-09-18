@@ -377,24 +377,22 @@ input { font-family: var(--font); outline: none; border: none; background: trans
   caret-color: var(--accent); /* 顯示游標顏色 */
 }
 
-/* 輸入框以外的貨幣列右鍵：顯示貼上覆蓋圖示 */
+/* 輸入框以外的貨幣列右鍵：顯示貼上覆蓋按鈕 */
 .currency-replace-paste {
   position: fixed;
   z-index: 1000;
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  min-width: 76px;
+  height: 38px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 9px;
   background: var(--card-bg);
-  color: var(--accent);
+  color: var(--text-primary);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  font: inherit;
   cursor: pointer;
 }
 
-.currency-replace-paste svg { width: 23px; height: 23px; fill: currentColor; }
 .currency-replace-paste:hover { background: var(--op-btn-hover); }
 
 /* 設定下拉選單樣式 */
