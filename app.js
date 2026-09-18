@@ -555,10 +555,8 @@ function renderCurrencyList() {
       const activeInput = document.querySelector('.currency-amount-input');
       if (activeInput) {
         if (activeInput.closest('.currency-item') === item) {
-          if (!e.target.closest('.currency-amount')) {
-            activeInput.select();
-            showPasteButton({ clientX: e.clientX, clientY: e.clientY + 10 }, 'replace');
-          }
+          // 已開啟同一列輸入框時，數字邊緣或選取把手附近的觸控不可當成空白處。
+          // 只保持既有插入狀態，避免一點偏就跳出「空白處貼上」。
           activeInput.focus();
           return;
         }
