@@ -1194,7 +1194,13 @@ function startInlineEdit(code, clickEvent) {
   measureContext.font = `${amountStyle.fontWeight} ${amountStyle.fontSize} ${amountStyle.fontFamily}`;
   const resizeInputWidth = () => {
     const textWidth = measureContext.measureText(input.value || '0').width;
-    input.style.width = `${Math.ceil(Math.max(amountWidth, textWidth) + 14)}px`;
+    let width = Math.ceil(Math.max(amountWidth, textWidth) + 14);
+    input.style.width = `${width}px`;
+    // Canvas 量測和 Android 實際字型偶有誤差；以 input 的真實 scrollWidth 再校正。
+    if (input.isConnected && input.scrollWidth > input.clientWidth) {
+      width += Math.ceil(input.scrollWidth - input.clientWidth) + 4;
+      input.style.width = `${width}px`;
+    }
   };
   input.resizeCurrencyAmountInput = resizeInputWidth;
   input.addEventListener('input', resizeInputWidth);

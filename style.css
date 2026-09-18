@@ -372,6 +372,7 @@ input { font-family: var(--font); outline: none; border: none; background: trans
   outline: none !important;           /* 無外框 */
   text-align: right;
   width: 150px;
+  flex: 0 0 auto; /* 不可被貨幣代碼擠窄，避免長數字被裁掉 */
   padding: 0 4px; /* 與金額文字對齊 */
   font-variant-numeric: tabular-nums;
   caret-color: var(--accent); /* 顯示游標顏色 */
