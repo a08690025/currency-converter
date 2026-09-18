@@ -1121,6 +1121,9 @@ function startInlineEdit(code, clickEvent) {
   const commaCount = (textToLeft.match(/,/g) || []).length;
   let targetCursorPos = caretOffset - commaCount;
 
+  // 必須在隱藏前量出數字寬度；display:none 後寬度會變成 0。
+  const amountWidth = amountEl.getBoundingClientRect().width;
+
   // 隱藏原本的金額標籤
   amountEl.style.display = 'none';
 
@@ -1131,7 +1134,7 @@ function startInlineEdit(code, clickEvent) {
   input.className = 'currency-amount-input';
   // 輸入框只覆蓋實際數字寬度。不可用固定 150px，否則視覺上的空白處
   // 仍會被當成輸入框，手機就會把游標放到數字最左邊而不是全選。
-  input.style.width = `${Math.ceil(amountEl.getBoundingClientRect().width + 8)}px`;
+  input.style.width = `${Math.ceil(amountWidth + 8)}px`;
   
   // 獲取目前畫面上顯示的數值，去除千分位逗號
   // 這能保證使用者點擊 "102.0" 編輯時就是 "102.0"，而不會跑出後台未格式化的 "102.0410632"
