@@ -288,6 +288,10 @@ function handleInputWithCalcBtn(input, action, value) {
       handleCalcBtn(action, value);
     }, 60);
   }
+
+  // 計算機按鍵是直接改 input.value，不會自動觸發 input 事件。
+  // 手動同步寬度，避免從 0 輸入 123 時最後一位被裁掉。
+  input.resizeCurrencyAmountInput?.();
 }
 
 // 輸入框外使用覆蓋模式，輸入框短按則使用插入模式。
@@ -327,6 +331,7 @@ function showPasteButton(position, mode = 'replace', lockMs = 0) {
         input.value = pastedText;
         input.setSelectionRange(input.value.length, input.value.length);
       }
+      input.resizeCurrencyAmountInput?.();
       input.focus();
     } catch (error) {
       if (mode === 'replace') input.select();
@@ -1151,7 +1156,6 @@ function startInlineEdit(code, clickEvent) {
   input.className = 'currency-amount-input';
   // 輸入框只覆蓋實際數字寬度。不可用固定 150px，否則視覺上的空白處
   // 仍會被當成輸入框，手機就會把游標放到數字最左邊而不是全選。
-  input.style.width = `${Math.ceil(amountWidth + 8)}px`;
   
   // 獲取目前畫面上顯示的數值，去除千分位逗號
   // 這能保證使用者點擊 "102.0" 編輯時就是 "102.0"，而不會跑出後台未格式化的 "102.0410632"
@@ -1163,6 +1167,18 @@ function startInlineEdit(code, clickEvent) {
   } else {
     input.value = rawValue;
   }
+
+  // 初始寬度貼合數字，之後每輸入一個字就即時擴張，保留足夠空間顯示完整內容。
+  const amountStyle = window.getComputedStyle(amountEl);
+  const measureContext = document.createElement('canvas').getContext('2d');
+  measureContext.font = `${amountStyle.fontWeight} ${amountStyle.fontSize} ${amountStyle.fontFamily}`;
+  const resizeInputWidth = () => {
+    const textWidth = measureContext.measureText(input.value || '0').width;
+    input.style.width = `${Math.ceil(Math.max(amountWidth, textWidth) + 8)}px`;
+  };
+  input.resizeCurrencyAmountInput = resizeInputWidth;
+  input.addEventListener('input', resizeInputWidth);
+  resizeInputWidth();
 
   // 將輸入框插入到原本金額標籤的前方
   amountEl.parentNode.insertBefore(input, amountEl);
@@ -1179,39 +1195,29 @@ function startInlineEdit(code, clickEvent) {
     input.setSelectionRange(finalPos, finalPos);
   }
 
-  let touchPasteTimer = null;
   let touchPasteLongPress = false;
   let lastTouchPasteAt = 0;
-  const clearTouchPasteTimer = () => {
-    if (touchPasteTimer !== null) window.clearTimeout(touchPasteTimer);
-    touchPasteTimer = null;
-  };
   input.addEventListener('touchstart', (e) => {
-    const touch = e.touches[0];
-    if (!touch) return;
     e.stopPropagation();
     input.focus();
     // 短按游標位置完全交給手機瀏覽器原生處理，準確對應手指位置。
     touchPasteLongPress = false;
     lastTouchPasteAt = Date.now();
-    clearTouchPasteTimer();
-    touchPasteTimer = window.setTimeout(() => {
-      touchPasteLongPress = true;
-      input.select();
-      showPasteButtonBelowInput('replace');
-    }, 500);
   }, { passive: false });
-  input.addEventListener('touchend', (e) => {
-    clearTouchPasteTimer();
+  input.addEventListener('touchend', () => {
     if (!touchPasteLongPress) {
       showPasteButtonBelowInput('insert');
     }
   }, { passive: true });
-  // 某些 Android WebView 長按會發出 touchcancel；不要取消 500ms 計時。
-  input.addEventListener('touchcancel', () => {});
   input.addEventListener('contextmenu', (e) => {
-    // 觸控長按改由上方 500ms 計時器處理；滑鼠右鍵仍維持瀏覽器原生選單。
-    if (Date.now() - lastTouchPasteAt < 1200) e.preventDefault();
+    // 長按交給手機原生 long-press 時間判斷，不再另設固定 500ms 計時。
+    // 桌面滑鼠右鍵則保留原本瀏覽器選單。
+    if (Date.now() - lastTouchPasteAt < 1200) {
+      e.preventDefault();
+      touchPasteLongPress = true;
+      input.select();
+      showPasteButtonBelowInput('replace');
+    }
   });
 
   let isCommitted = false;
