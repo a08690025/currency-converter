@@ -322,10 +322,15 @@ function showPasteButton(position, mode = 'replace', lockMs = 0) {
     e.preventDefault();
     e.stopPropagation();
   });
-  button.addEventListener('click', async () => {
-    if (Date.now() < unlockedAt) return;
+  let pasteHandled = false;
+  const performPaste = async () => {
+    if (pasteHandled || Date.now() < unlockedAt) return;
+    pasteHandled = true;
     closeButton();
-    const input = document.querySelector('.currency-amount-input');
+    // 優先用按鈕出現當下的輸入框，不能讓貼上按鈕的觸控改變它的選取範圍。
+    const input = activeInput && activeInput.isConnected
+      ? activeInput
+      : document.querySelector('.currency-amount-input');
     if (!input) return;
     try {
       const text = await navigator.clipboard.readText();
@@ -344,6 +349,19 @@ function showPasteButton(position, mode = 'replace', lockMs = 0) {
       if (mode === 'replace') input.select();
       input.focus();
     }
+  };
+  button.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, { passive: false });
+  button.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    performPaste();
+  }, { passive: false });
+  button.addEventListener('click', (e) => {
+    e.preventDefault();
+    performPaste();
   });
   window.setTimeout(() => document.addEventListener('pointerdown', closeButton, { once: true }), 0);
 }
