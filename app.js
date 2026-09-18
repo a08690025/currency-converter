@@ -1207,7 +1207,12 @@ function startInlineEdit(code, clickEvent) {
     if (!touchPasteLongPress) {
       const touch = e.changedTouches[0];
       if (!touch) return;
-      const position = { clientX: touch.clientX, clientY: touch.clientY };
+      const rect = input.getBoundingClientRect();
+      // 短按的按鈕固定放在輸入框下方，避開數字本體，方便再點其他位數。
+      const position = {
+        clientX: rect.right - 76,
+        clientY: Math.min(rect.bottom + 10, window.innerHeight - 48),
+      };
       // 立即顯示，但先鎖定 100ms；避免同一次放開手指誤觸貼上。
       showPasteButton(position, 'insert', 100);
     }
