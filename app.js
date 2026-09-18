@@ -501,7 +501,8 @@ function renderCurrencyList() {
           clickEvent: {
             clientX: e.clientX,
             clientY: e.clientY,
-            useAmountCaret: Boolean(e.target.closest('.currency-amount')),
+            useAmountCaret: false,
+            selectAll: true,
           },
         };
         activeInput.blur();
@@ -509,8 +510,8 @@ function renderCurrencyList() {
         startInlineEdit(code, {
           clientX: e.clientX,
           clientY: e.clientY,
-          useAmountCaret: Boolean(e.target.closest('.currency-amount')),
-          selectAll: !e.target.closest('.currency-amount'),
+          useAmountCaret: false,
+          selectAll: true,
         });
       }
     });
@@ -1102,13 +1103,8 @@ function startInlineEdit(code, clickEvent) {
   // 聚焦
   input.focus();
   
-  // 將游標移至點擊位置
-  if (clickEvent && clickEvent.selectAll) {
-    input.select();
-  } else {
-    const finalPos = Math.max(0, Math.min(input.value.length, targetCursorPos));
-    input.setSelectionRange(finalPos, finalPos);
-  }
+  // 所有卡片點擊都先全選金額；輸入、Ctrl+V 與手機長按貼上都直接覆蓋。
+  input.select();
 
   let isCommitted = false;
 
@@ -1152,6 +1148,15 @@ function startInlineEdit(code, clickEvent) {
 
   // 監聽失去焦點與鍵盤動作
   input.addEventListener('blur', commitEdit);
+  input.addEventListener('paste', (e) => {
+    // 手機長按的原生貼上選單可能先重設游標位置，因此不能只依賴 input.select()。
+    // 攔截貼上資料並直接取代全部內容，原生右鍵選單與 Ctrl+V 仍然照常可用。
+    const pastedText = e.clipboardData && e.clipboardData.getData('text');
+    if (pastedText === null || pastedText === undefined) return;
+    e.preventDefault();
+    input.value = pastedText.replace(/[^0-9.]/g, '');
+    input.setSelectionRange(input.value.length, input.value.length);
+  });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       commitEdit();
