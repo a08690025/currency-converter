@@ -1225,7 +1225,11 @@ function startInlineEdit(code, clickEvent) {
     // 短按游標位置完全交給手機瀏覽器原生處理，準確對應手指位置。
     touchPasteLongPress = false;
     lastTouchPasteAt = Date.now();
-    lastTouchPastePosition = touch ? { clientX: touch.clientX, clientY: touch.clientY + 10 } : null;
+    // 插入框貼上按鈕：水平跟手指，垂直固定在數字本體下方 10px。
+    const inputRect = input.getBoundingClientRect();
+    lastTouchPastePosition = touch
+      ? { clientX: touch.clientX, clientY: Math.min(inputRect.bottom + 10, window.innerHeight - 48) }
+      : null;
     // Android 有時在長按全選後，下一次短按仍保留整段反白。
     // 先讓瀏覽器處理真正觸控游標；若它沒有取消全選，再依觸控位置收回游標。
     window.setTimeout(() => {
