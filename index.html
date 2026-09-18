@@ -203,11 +203,11 @@
   <!-- Toast 通知 -->
   <div class="toast" id="toast" role="alert" aria-live="polite"></div>
 
-  <script src="app.js"></script>
+  <script src="app.js?rev=37fd234"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
+        navigator.serviceWorker.register('./sw.js?rev=37fd234')
           .then(reg => console.log('PWA Service Worker registered!', reg))
           .catch(err => console.log('Service Worker registration failed: ', err));
       });

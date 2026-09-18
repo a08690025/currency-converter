@@ -1,11 +1,12 @@
 // 更新網站檔案時請提高這個版本，讓已安裝的 PWA 取得新版快取。
 const CACHE_NAME = 'currency-converter-v10';
+const RELEASE_REVISION = '37fd234';
 const CACHE_NAMES_TO_RESET = ['currency-converter-v10', 'currency-converter-v11'];
 const ASSETS = [
   './',
   './index.html',
   './style.css',
-  './app.js',
+  `./app.js?rev=${RELEASE_REVISION}`,
   './manifest.json',
   './icon.jpg'
 ];
@@ -36,13 +37,20 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// 攔截網路請求，優先回傳快取內容（離線存取）
+// 首頁優先從網路更新，其他資源保留快取以支援離線使用。
 self.addEventListener('fetch', (e) => {
   // 只攔截同源的 GET 請求，API 等外部請求不強制快取
   if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) {
     return;
   }
   
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).catch(() => caches.match('./'))
+    );
+    return;
+  }
+
   e.respondWith(
     caches.match(e.request).then((cachedResponse) => {
       if (cachedResponse) {
