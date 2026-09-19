@@ -1154,26 +1154,9 @@ function bindEvents() {
     const isInlineInput = document.activeElement
       && document.activeElement.classList.contains('currency-amount-input');
     if (isInlineInput) {
-      const activeInput = document.activeElement;
-      // 直接在 keydown 攔截數字（含數字鍵盤）。某些 Chromium 不會為
-      // 數字鍵盤提供可用的 beforeinput 資料，會把游標留在左側。
-      const numpadMatch = /^Numpad([0-9])$/.exec(e.code || '');
-      const digit = /^\d$/.test(e.key) ? e.key : (numpadMatch ? numpadMatch[1] : null);
-      if (digit !== null) {
-        e.preventDefault();
-        if (activeInput.replaceOnFirstKeyboardDigit) {
-          activeInput.setSelectionRange(0, activeInput.value.length);
-          activeInput.replaceOnFirstKeyboardDigit = false;
-        }
-        handleInputWithCalcBtn(activeInput, 'digit', digit);
-        return;
-      }
-      // 小數點仍由程式維護，避免右對齊輸入框在重排後移動游標。
-      if (e.key === '.' || e.key === ',') {
-        e.preventDefault();
-        handleInputWithCalcBtn(activeInput, 'decimal', '');
-        return;
-      }
+      // 實體鍵盤的數字與小數點必須交給原生 input 處理。Chromium 即使
+      // keydown 已 preventDefault，仍可能再觸發文字輸入；自行插入會造成 1|1。
+      if (/^\d$/.test(e.key) || /^Numpad[0-9]$/.test(e.code || '') || e.key === '.' || e.key === ',') return;
       // 運算符不可當文字輸入。
       const inlineOperationKeys = ['+', '-', '*', '/', 'Enter', '='];
       if (inlineOperationKeys.includes(e.key)) {
@@ -1320,7 +1303,14 @@ function startInlineEdit(code, clickEvent) {
     }
   };
   input.resizeCurrencyAmountInput = resizeInputWidth;
-  input.addEventListener('input', resizeInputWidth);
+  input.addEventListener('input', () => {
+    resizeInputWidth();
+    // 寬度重排後保留瀏覽器已計算好的插入位置，不自行新增任何文字。
+    const caret = input.selectionStart;
+    if (caret !== null) requestAnimationFrame(() => {
+      if (input.isConnected) input.setSelectionRange(caret, caret);
+    });
+  });
   input.addEventListener('paste', (e) => {
     const text = e.clipboardData && e.clipboardData.getData('text');
     if (text === null || text === undefined) return;
@@ -1471,8 +1461,15 @@ function startInlineEdit(code, clickEvent) {
     '=': ['equals', ''],
   };
   input.addEventListener('beforeinput', (e) => {
-    // 數字已在 document keydown 處理；這裡只保留少數鍵盤／輸入法
-    // 沒有標準 key 名稱時的運算符備援，避免同一個數字被插入兩次。
+    // 切換貨幣後的首個實體鍵盤數字覆蓋換算預覽值，但文字仍讓瀏覽器只插入一次。
+    if (e.inputType === 'insertText' && /^[0-9.,]$/.test(e.data || '')) {
+      if (input.replaceOnFirstKeyboardDigit) {
+        input.select();
+        input.replaceOnFirstKeyboardDigit = false;
+      }
+      return;
+    }
+    // 少數鍵盤／輸入法沒有標準 key 名稱時的運算符備援。
     const operation = inlineTextOperations[e.data];
     if (!operation) return;
     e.preventDefault();
