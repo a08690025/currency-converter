@@ -1478,6 +1478,14 @@ function startInlineEdit(code, clickEvent) {
         input.resizeCurrencyAmountInput?.();
         input.setSelectionRange(input.value.length, input.value.length);
         input.replaceOnFirstKeyboardDigit = false;
+        // Chromium 在取消 beforeinput 後仍可能於本次事件尾端把游標推回左側。
+        // 等文字寬度重排完成再放到字尾，確保顯示為 0| 而不是 |0。
+        requestAnimationFrame(() => {
+          if (input.isConnected && document.activeElement === input) {
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+          }
+        });
       }
       return;
     }
