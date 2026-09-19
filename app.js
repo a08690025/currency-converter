@@ -285,31 +285,33 @@ function handleInputWithCalcBtn(input, action, value) {
     // 在游標處插入數字
     input.value = val.slice(0, start) + value + val.slice(end);
     const newPos = start + value.length;
-    input.setSelectionRange(newPos, newPos);
     input.focus();
+    input.setSelectionRange(newPos, newPos);
   } else if (action === 'decimal') {
     // 插入小數點（若無）
     if (!val.includes('.')) {
       input.value = val.slice(0, start) + '.' + val.slice(end);
       const newPos = start + 1;
+      input.focus();
       input.setSelectionRange(newPos, newPos);
+      input.resizeCurrencyAmountInput?.();
+      return;
     }
     input.focus();
   } else if (action === 'backspace') {
     // 刪除字元
     if (start !== end) {
       input.value = val.slice(0, start) + val.slice(end);
-      input.setSelectionRange(start, start);
     } else if (start > 0) {
       input.value = val.slice(0, start - 1) + val.slice(end);
-      input.setSelectionRange(start - 1, start - 1);
     }
     input.focus();
+    input.setSelectionRange(start !== end ? start : Math.max(0, start - 1), start !== end ? start : Math.max(0, start - 1));
   } else if (action === 'clear') {
     // 全部清除
     input.value = '';
-    input.setSelectionRange(0, 0);
     input.focus();
+    input.setSelectionRange(0, 0);
   } else if (action === 'percent') {
     // 百分比：直接換算現有數值 / 100
     const v = parseFloat(val) || 0;
