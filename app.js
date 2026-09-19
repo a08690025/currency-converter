@@ -1158,7 +1158,16 @@ function bindEvents() {
       // keydown 已 preventDefault，仍可能再觸發文字輸入；自行插入會造成 1|1。
       const isNativeNumberKey = /^\d$/.test(e.key) || /^Numpad[0-9]$/.test(e.code || '')
         || e.key === '.' || e.key === ',';
-      if (isNativeNumberKey) return;
+      if (isNativeNumberKey) {
+        // 先在 keydown 選取換算預覽值，然後完全交給瀏覽器原生插入一次。
+        // 不能在 beforeinput 取消後自行寫值，舊版 Chrome 會把游標畫回左側。
+        if (document.activeElement.replaceOnFirstKeyboardDigit) {
+          document.activeElement.select();
+          document.activeElement.replaceOnFirstKeyboardDigit = false;
+          document.activeElement.forceCaretToEndAfterNativeInput = true;
+        }
+        return;
+      }
       // 運算符不可當文字輸入。
       const inlineOperationKeys = ['+', '-', '*', '/', 'Enter', '='];
       if (inlineOperationKeys.includes(e.key)) {
@@ -1313,11 +1322,21 @@ function startInlineEdit(code, clickEvent) {
       input.value = input.value.slice(zeroPrefix[0].length);
       caret = Math.max(0, (caret ?? 0) - zeroPrefix[0].length);
     }
+    const forceCaretToEnd = input.forceCaretToEndAfterNativeInput;
+    input.forceCaretToEndAfterNativeInput = false;
+    if (forceCaretToEnd) caret = input.value.length;
     resizeInputWidth();
     // 寬度重排後保留瀏覽器已計算好的插入位置，不自行新增任何文字。
     if (caret !== null) requestAnimationFrame(() => {
       if (input.isConnected) input.setSelectionRange(caret, caret);
     });
+    // Chrome 版本較舊時，輸入事件結束後才會更新繪製游標；再延後一次可
+    // 確保首個數字顯示為 1|，而不是 |1。
+    if (forceCaretToEnd) window.setTimeout(() => {
+      if (input.isConnected && document.activeElement === input) {
+        input.setSelectionRange(input.value.length, input.value.length);
+      }
+    }, 0);
   });
   input.addEventListener('paste', (e) => {
     const text = e.clipboardData && e.clipboardData.getData('text');
@@ -1469,23 +1488,12 @@ function startInlineEdit(code, clickEvent) {
     '=': ['equals', ''],
   };
   input.addEventListener('beforeinput', (e) => {
-    // 切換貨幣後的首個實體鍵盤數字需要確實覆蓋換算預覽值。直接在
-    // beforeinput 攔下並寫入一次，避免 Chrome 的選取時機造成 01／0|1。
+    // 沒有標準 keydown 的輸入法備援：只先全選，數字仍由瀏覽器原生寫入。
     if (e.inputType === 'insertText' && /^[0-9.,]$/.test(e.data || '')) {
       if (input.replaceOnFirstKeyboardDigit) {
-        e.preventDefault();
-        input.value = e.data === ',' ? '.' : e.data;
-        input.resizeCurrencyAmountInput?.();
-        input.setSelectionRange(input.value.length, input.value.length);
+        input.select();
         input.replaceOnFirstKeyboardDigit = false;
-        // Chromium 在取消 beforeinput 後仍可能於本次事件尾端把游標推回左側。
-        // 等文字寬度重排完成再放到字尾，確保顯示為 0| 而不是 |0。
-        requestAnimationFrame(() => {
-          if (input.isConnected && document.activeElement === input) {
-            input.focus();
-            input.setSelectionRange(input.value.length, input.value.length);
-          }
-        });
+        input.forceCaretToEndAfterNativeInput = true;
       }
       return;
     }
