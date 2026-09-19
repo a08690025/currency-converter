@@ -1391,6 +1391,21 @@ function startInlineEdit(code, clickEvent) {
   // 計算機的運算鍵需要可直接提交，不依賴 Android 是否觸發 blur。
   input.commitInlineEdit = commitEdit;
 
+  // 某些 Windows 鍵盤／輸入法的 key 名稱不是標準的 "-"，全域 keydown
+  // 無法可靠辨認。beforeinput 直接攔截「要寫進輸入框的字元」，避免 10-5
+  // 被當成文字並在提交後變成 105。
+  const inlineTextOperations = {
+    '+': ['op', '+'], '-': ['op', '-'], '−': ['op', '-'],
+    '*': ['op', '×'], '×': ['op', '×'], '/': ['op', '÷'], '÷': ['op', '÷'],
+    '=': ['equals', ''],
+  };
+  input.addEventListener('beforeinput', (e) => {
+    const operation = inlineTextOperations[e.data];
+    if (!operation) return;
+    e.preventDefault();
+    handleCalcBtn(operation[0], operation[1]);
+  });
+
   // 監聽失去焦點與鍵盤動作
   input.addEventListener('blur', commitEdit);
   input.addEventListener('keydown', (e) => {
