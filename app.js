@@ -1323,7 +1323,6 @@ function startInlineEdit(code, clickEvent) {
       caret = Math.max(0, (caret ?? 0) - zeroPrefix[0].length);
     }
     const forceCaretToEnd = input.forceCaretToEndAfterNativeInput;
-    input.forceCaretToEndAfterNativeInput = false;
     if (forceCaretToEnd) caret = input.value.length;
     resizeInputWidth();
     // 寬度重排後保留瀏覽器已計算好的插入位置，不自行新增任何文字。
@@ -1337,6 +1336,26 @@ function startInlineEdit(code, clickEvent) {
         input.setSelectionRange(input.value.length, input.value.length);
       }
     }, 0);
+    if (forceCaretToEnd && !input.firstKeyCaretCorrectionActive) {
+      // 舊版 Chrome 有時會在 input／動畫幀都結束後才發出 selectionchange，
+      // 把右對齊輸入框畫成 |1。短暫監聽該事件並只校正這一次首鍵。
+      input.firstKeyCaretCorrectionActive = true;
+      const correctFirstKeyCaret = () => {
+        if (input.isConnected && document.activeElement === input) {
+          const end = input.value.length;
+          if (input.selectionStart !== end || input.selectionEnd !== end) {
+            input.setSelectionRange(end, end);
+          }
+        }
+      };
+      document.addEventListener('selectionchange', correctFirstKeyCaret);
+      window.setTimeout(() => {
+        correctFirstKeyCaret();
+        document.removeEventListener('selectionchange', correctFirstKeyCaret);
+        input.forceCaretToEndAfterNativeInput = false;
+        input.firstKeyCaretCorrectionActive = false;
+      }, 120);
+    }
   });
   input.addEventListener('paste', (e) => {
     const text = e.clipboardData && e.clipboardData.getData('text');
