@@ -81,6 +81,7 @@ let state = {
 let pendingInlineEdit = null;
 let pendingPasteButton = null;
 let pendingPasteDisplayTimer = null;
+let blankPasteHoldTimer = null;
 
 /* ===========================
    工具函式
@@ -99,6 +100,27 @@ function schedulePasteButton(position, mode, delay = 0) {
     pendingPasteDisplayTimer = null;
     showPasteButton(position, mode);
   }, delay);
+}
+
+function clearBlankPasteHold() {
+  if (blankPasteHoldTimer !== null) window.clearTimeout(blankPasteHoldTimer);
+  blankPasteHoldTimer = null;
+}
+
+// 空白處短按只進入全選；持續觸碰才出現覆蓋貼上。
+function beginBlankPasteHold(code, position) {
+  clearBlankPasteHold();
+  const cancel = () => clearBlankPasteHold();
+  document.addEventListener('pointerup', cancel, { once: true });
+  document.addEventListener('pointercancel', cancel, { once: true });
+  blankPasteHoldTimer = window.setTimeout(() => {
+    blankPasteHoldTimer = null;
+    const input = document.querySelector('.currency-amount-input');
+    if (input && input.closest('.currency-item')?.dataset.code === code) {
+      input.select();
+      schedulePasteButton(position, 'replace');
+    }
+  }, 350);
 }
 
 function saveState() {
@@ -323,7 +345,8 @@ function showPasteButton(position, mode = 'replace', lockMs = 0) {
   button.setAttribute('aria-label', '貼上');
   button.title = '貼上並覆蓋數字';
   button.textContent = '貼上';
-  button.style.left = `${Math.min(position.clientX, window.innerWidth - 92)}px`;
+  // 傳入位置為插入／觸控位置；貼上按鈕以它為中心對齊。
+  button.style.left = `${Math.max(4, Math.min(position.clientX - 38, window.innerWidth - 92))}px`;
   button.style.top = `${Math.min(position.clientY, window.innerHeight - 48)}px`;
   const unlockedAt = Date.now() + lockMs;
   if (lockMs > 0) {
@@ -580,6 +603,7 @@ function renderCurrencyList() {
       e.stopPropagation();
       clearPendingPasteButton();
       const isAmountTarget = Boolean(e.target.closest('.currency-amount'));
+      if (!isAmountTarget) beginBlankPasteHold(code, { clientX: e.clientX, clientY: e.clientY + 10 });
 
       // 從一張正在編輯的卡片點到另一張時，舊 input 的 blur 會先重繪清單。
       // 把「開啟下一列輸入」交給 blur 完成後處理，避免第一下只提交舊輸入。
@@ -592,7 +616,6 @@ function renderCurrencyList() {
             && e.clientY >= rect.top - 14 && e.clientY <= rect.bottom + 14;
           if (!isNearInput) {
             activeInput.select();
-            schedulePasteButton({ clientX: e.clientX, clientY: e.clientY + 10 }, 'replace', 200);
           }
           activeInput.focus();
           return;
@@ -605,11 +628,11 @@ function renderCurrencyList() {
             clientY: e.clientY,
             useAmountCaret: isAmountTarget,
             selectAll: !isAmountTarget,
-            // 切換到另一列數字區的第一下，也直接提供插入貼上。
-            showPasteButton: true,
+            // 切換到另一列數字區的第一下，也直接提供插入貼上；空白處則須長按。
+            showPasteButton: isAmountTarget,
             pasteMode: isAmountTarget ? 'insert' : 'replace',
             pasteButtonPosition: { clientX: e.clientX, clientY: e.clientY + 10 },
-            pasteButtonDelay: isAmountTarget ? 0 : 200,
+            pasteButtonDelay: 0,
           },
         };
         activeInput.blur();
@@ -619,10 +642,10 @@ function renderCurrencyList() {
           clientY: e.clientY,
           useAmountCaret: isAmountTarget,
           selectAll: !isAmountTarget,
-          showPasteButton: true,
+          showPasteButton: isAmountTarget,
           pasteMode: isAmountTarget ? 'insert' : 'replace',
           pasteButtonPosition: { clientX: e.clientX, clientY: e.clientY + 10 },
-          pasteButtonDelay: isAmountTarget ? 0 : 200,
+          pasteButtonDelay: 0,
         });
       }
     });
