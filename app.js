@@ -669,6 +669,7 @@ function renderCurrencyList() {
             clientY: e.clientY,
             useAmountCaret: isAmountTarget && !isCurrencySwitch,
             selectAll: isCurrencySwitch || !isAmountTarget,
+            replaceOnFirstKeyboardDigit: isCurrencySwitch,
             // 切換到另一列數字區的第一下，也直接提供插入貼上；空白處則須長按。
             showPasteButton: isAmountTarget,
             pasteMode: isAmountTarget ? 'insert' : 'replace',
@@ -683,6 +684,7 @@ function renderCurrencyList() {
           clientY: e.clientY,
           useAmountCaret: isAmountTarget && !isCurrencySwitch,
           selectAll: isCurrencySwitch || !isAmountTarget,
+          replaceOnFirstKeyboardDigit: isCurrencySwitch,
           showPasteButton: isAmountTarget,
           pasteMode: isAmountTarget ? 'insert' : 'replace',
           pasteButtonPosition: { clientX: e.clientX, clientY: e.clientY + 10 },
@@ -1267,6 +1269,8 @@ function startInlineEdit(code, clickEvent) {
   input.type = 'text';
   input.inputMode = 'none';
   input.className = 'currency-amount-input';
+  // 從另一種貨幣切換過來時，第一個鍵盤數字一定覆蓋換算預覽值。
+  input.replaceOnFirstKeyboardDigit = Boolean(clickEvent && clickEvent.replaceOnFirstKeyboardDigit);
   // 輸入框只覆蓋實際數字寬度。不可用固定 150px，否則視覺上的空白處
   // 仍會被當成輸入框，手機就會把游標放到數字最左邊而不是全選。
   
@@ -1451,6 +1455,10 @@ function startInlineEdit(code, clickEvent) {
     // 第一個字輸入後會把游標跳到左側，造成輸入 20 顯示成 02。
     if (e.inputType === 'insertText' && /^\d$/.test(e.data || '')) {
       e.preventDefault();
+      if (input.replaceOnFirstKeyboardDigit) {
+        input.setSelectionRange(0, input.value.length);
+        input.replaceOnFirstKeyboardDigit = false;
+      }
       handleInputWithCalcBtn(input, 'digit', e.data);
       return;
     }
