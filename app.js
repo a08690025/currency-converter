@@ -1097,11 +1097,6 @@ function bindEvents() {
 
   // 鍵盤支援
   document.addEventListener('keydown', (e) => {
-    // 如果使用者正聚焦在金額直接輸入框中，不攔截實體鍵盤按鍵，保留瀏覽器預設的游標插入行為
-    if (document.activeElement && document.activeElement.classList.contains('currency-amount-input')) {
-      return;
-    }
-
     if ($('currencyDrawer').classList.contains('open') || $('settingsDrawer').classList.contains('open')) return;
 
     const map = {
@@ -1114,6 +1109,18 @@ function bindEvents() {
       'Backspace': ['backspace',''], 'Delete': ['clear',''],
       'Escape': ['clear',''], '%': ['percent',''],
     };
+
+    const isInlineInput = document.activeElement
+      && document.activeElement.classList.contains('currency-amount-input');
+    if (isInlineInput) {
+      // 數字與小數點仍由瀏覽器直接插到游標位置；運算符不可當文字輸入。
+      const inlineOperationKeys = ['+', '-', '*', '/', 'Enter', '='];
+      if (inlineOperationKeys.includes(e.key)) {
+        e.preventDefault();
+        handleCalcBtn(map[e.key][0], map[e.key][1]);
+      }
+      return;
+    }
 
     if (map[e.key]) {
       e.preventDefault();
