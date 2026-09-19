@@ -24,8 +24,8 @@
           .filter((key) => key.startsWith('currency-converter-'))
           .map((key) => caches.delete(key)));
       }
-      location.replace('./?refreshed=20260920-first-key-replace');
-    })().catch(() => location.replace('./?refreshed=20260920-first-key-replace'));
+      location.replace('./?refreshed=20260920-trim-leading-zero');
+    })().catch(() => location.replace('./?refreshed=20260920-trim-leading-zero'));
   </script>
 </body>
 </html>

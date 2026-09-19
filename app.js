@@ -1306,9 +1306,15 @@ function startInlineEdit(code, clickEvent) {
   };
   input.resizeCurrencyAmountInput = resizeInputWidth;
   input.addEventListener('input', () => {
+    // 計算機的 0 是起始值，後面接整數時不可形成 01／001；小數 0.1 保留。
+    let caret = input.selectionStart;
+    const zeroPrefix = /^0+(?=\d)/.exec(input.value);
+    if (zeroPrefix) {
+      input.value = input.value.slice(zeroPrefix[0].length);
+      caret = Math.max(0, (caret ?? 0) - zeroPrefix[0].length);
+    }
     resizeInputWidth();
     // 寬度重排後保留瀏覽器已計算好的插入位置，不自行新增任何文字。
-    const caret = input.selectionStart;
     if (caret !== null) requestAnimationFrame(() => {
       if (input.isConnected) input.setSelectionRange(caret, caret);
     });
