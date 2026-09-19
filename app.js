@@ -1471,22 +1471,8 @@ function startInlineEdit(code, clickEvent) {
     '=': ['equals', ''],
   };
   input.addEventListener('beforeinput', (e) => {
-    // 直接輸入數字也自行維護游標。部分瀏覽器在右對齊、動態寬度的輸入框中，
-    // 第一個字輸入後會把游標跳到左側，造成輸入 20 顯示成 02。
-    if (e.inputType === 'insertText' && /^\d$/.test(e.data || '')) {
-      e.preventDefault();
-      if (input.replaceOnFirstKeyboardDigit) {
-        input.setSelectionRange(0, input.value.length);
-        input.replaceOnFirstKeyboardDigit = false;
-      }
-      handleInputWithCalcBtn(input, 'digit', e.data);
-      return;
-    }
-    if (e.inputType === 'insertText' && (e.data === '.' || e.data === ',')) {
-      e.preventDefault();
-      handleInputWithCalcBtn(input, 'decimal', '');
-      return;
-    }
+    // 數字已在 document keydown 處理；這裡只保留少數鍵盤／輸入法
+    // 沒有標準 key 名稱時的運算符備援，避免同一個數字被插入兩次。
     const operation = inlineTextOperations[e.data];
     if (!operation) return;
     e.preventDefault();
