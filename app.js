@@ -1154,7 +1154,27 @@ function bindEvents() {
     const isInlineInput = document.activeElement
       && document.activeElement.classList.contains('currency-amount-input');
     if (isInlineInput) {
-      // 數字與小數點仍由瀏覽器直接插到游標位置；運算符不可當文字輸入。
+      const activeInput = document.activeElement;
+      // 直接在 keydown 攔截數字（含數字鍵盤）。某些 Chromium 不會為
+      // 數字鍵盤提供可用的 beforeinput 資料，會把游標留在左側。
+      const numpadMatch = /^Numpad([0-9])$/.exec(e.code || '');
+      const digit = /^\d$/.test(e.key) ? e.key : (numpadMatch ? numpadMatch[1] : null);
+      if (digit !== null) {
+        e.preventDefault();
+        if (activeInput.replaceOnFirstKeyboardDigit) {
+          activeInput.setSelectionRange(0, activeInput.value.length);
+          activeInput.replaceOnFirstKeyboardDigit = false;
+        }
+        handleInputWithCalcBtn(activeInput, 'digit', digit);
+        return;
+      }
+      // 小數點仍由程式維護，避免右對齊輸入框在重排後移動游標。
+      if (e.key === '.' || e.key === ',') {
+        e.preventDefault();
+        handleInputWithCalcBtn(activeInput, 'decimal', '');
+        return;
+      }
+      // 運算符不可當文字輸入。
       const inlineOperationKeys = ['+', '-', '*', '/', 'Enter', '='];
       if (inlineOperationKeys.includes(e.key)) {
         e.preventDefault();
