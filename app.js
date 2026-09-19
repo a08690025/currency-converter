@@ -1441,6 +1441,18 @@ function startInlineEdit(code, clickEvent) {
     '=': ['equals', ''],
   };
   input.addEventListener('beforeinput', (e) => {
+    // 直接輸入數字也自行維護游標。部分瀏覽器在右對齊、動態寬度的輸入框中，
+    // 第一個字輸入後會把游標跳到左側，造成輸入 20 顯示成 02。
+    if (e.inputType === 'insertText' && /^\d$/.test(e.data || '')) {
+      e.preventDefault();
+      handleInputWithCalcBtn(input, 'digit', e.data);
+      return;
+    }
+    if (e.inputType === 'insertText' && (e.data === '.' || e.data === ',')) {
+      e.preventDefault();
+      handleInputWithCalcBtn(input, 'decimal', '');
+      return;
+    }
     const operation = inlineTextOperations[e.data];
     if (!operation) return;
     e.preventDefault();
