@@ -316,10 +316,14 @@ function handleInputWithCalcBtn(input, action, value) {
     input.value = String(v / 100);
     input.focus();
   } else if (action === 'equals' || action === 'op') {
-    // 點擊等號或加減乘除 ➔ 先提交當前編輯，再立刻執行運算。
-    // blur 的 commitEdit 會同步重新渲染清單；不能再延遲處理，否則手機
-    // WebView 的下一個觸控可能先到，導致加／減按鍵看起來沒有作用。
-    input.blur();
+    // 點擊等號或加減乘除 ➔ 強制提交當前編輯，再立刻執行運算。
+    // 不可只依賴 blur：Android WebView 有時會保留輸入框焦點，讓「-」被
+    // 當成文字插入，結果 10 - 5 變成 105。
+    if (typeof input.commitInlineEdit === 'function') {
+      input.commitInlineEdit();
+    } else {
+      input.blur();
+    }
     handleCalcBtn(action, value);
     return;
   }
@@ -1376,6 +1380,9 @@ function startInlineEdit(code, clickEvent) {
     isCommitted = true;
     renderCurrencyList(); // 重新渲染直接復原為文字
   };
+
+  // 計算機的運算鍵需要可直接提交，不依賴 Android 是否觸發 blur。
+  input.commitInlineEdit = commitEdit;
 
   // 監聽失去焦點與鍵盤動作
   input.addEventListener('blur', commitEdit);
