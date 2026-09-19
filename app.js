@@ -640,6 +640,9 @@ function renderCurrencyList() {
       e.stopPropagation();
       clearPendingPasteButton();
       const isAmountTarget = Boolean(e.target.closest('.currency-amount'));
+      // 切換到另一種貨幣時，換算值只是預覽；下一次輸入應穩定覆蓋它，
+      // 不應沿用被點擊數字的游標位置。只有同一個輸入框才保留插入位置。
+      const isCurrencySwitch = state.activeCurrency !== code;
       if (!isAmountTarget) beginBlankPasteHold(code, { clientX: e.clientX, clientY: e.clientY + 10 });
 
       // 從一張正在編輯的卡片點到另一張時，舊 input 的 blur 會先重繪清單。
@@ -663,8 +666,8 @@ function renderCurrencyList() {
           clickEvent: {
             clientX: e.clientX,
             clientY: e.clientY,
-            useAmountCaret: isAmountTarget,
-            selectAll: !isAmountTarget,
+            useAmountCaret: isAmountTarget && !isCurrencySwitch,
+            selectAll: isCurrencySwitch || !isAmountTarget,
             // 切換到另一列數字區的第一下，也直接提供插入貼上；空白處則須長按。
             showPasteButton: isAmountTarget,
             pasteMode: isAmountTarget ? 'insert' : 'replace',
@@ -677,8 +680,8 @@ function renderCurrencyList() {
         startInlineEdit(code, {
           clientX: e.clientX,
           clientY: e.clientY,
-          useAmountCaret: isAmountTarget,
-          selectAll: !isAmountTarget,
+          useAmountCaret: isAmountTarget && !isCurrencySwitch,
+          selectAll: isCurrencySwitch || !isAmountTarget,
           showPasteButton: isAmountTarget,
           pasteMode: isAmountTarget ? 'insert' : 'replace',
           pasteButtonPosition: { clientX: e.clientX, clientY: e.clientY + 10 },
