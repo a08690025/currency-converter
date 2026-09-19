@@ -1156,7 +1156,17 @@ function bindEvents() {
     if (isInlineInput) {
       // 實體鍵盤的數字與小數點必須交給原生 input 處理。Chromium 即使
       // keydown 已 preventDefault，仍可能再觸發文字輸入；自行插入會造成 1|1。
-      if (/^\d$/.test(e.key) || /^Numpad[0-9]$/.test(e.code || '') || e.key === '.' || e.key === ',') return;
+      const isNativeNumberKey = /^\d$/.test(e.key) || /^Numpad[0-9]$/.test(e.code || '')
+        || e.key === '.' || e.key === ',';
+      if (isNativeNumberKey) {
+        // 必須在瀏覽器開始插字前完成全選；只在 beforeinput 選取會太晚，
+        // 某些 Chrome 會保留原本的 0 而變成 01。
+        if (document.activeElement.replaceOnFirstKeyboardDigit) {
+          document.activeElement.select();
+          document.activeElement.replaceOnFirstKeyboardDigit = false;
+        }
+        return;
+      }
       // 運算符不可當文字輸入。
       const inlineOperationKeys = ['+', '-', '*', '/', 'Enter', '='];
       if (inlineOperationKeys.includes(e.key)) {
