@@ -280,24 +280,18 @@ function handleInputWithCalcBtn(input, action, value) {
   const start = input.selectionStart;
   const end = input.selectionEnd;
   let val = input.value;
+  let finalCaret = null;
 
   if (action === 'digit') {
     // 在游標處插入數字
     input.value = val.slice(0, start) + value + val.slice(end);
-    const newPos = start + value.length;
-    input.focus();
-    input.setSelectionRange(newPos, newPos);
+    finalCaret = start + value.length;
   } else if (action === 'decimal') {
     // 插入小數點（若無）
     if (!val.includes('.')) {
       input.value = val.slice(0, start) + '.' + val.slice(end);
-      const newPos = start + 1;
-      input.focus();
-      input.setSelectionRange(newPos, newPos);
-      input.resizeCurrencyAmountInput?.();
-      return;
+      finalCaret = start + 1;
     }
-    input.focus();
   } else if (action === 'backspace') {
     // 刪除字元
     if (start !== end) {
@@ -305,13 +299,11 @@ function handleInputWithCalcBtn(input, action, value) {
     } else if (start > 0) {
       input.value = val.slice(0, start - 1) + val.slice(end);
     }
-    input.focus();
-    input.setSelectionRange(start !== end ? start : Math.max(0, start - 1), start !== end ? start : Math.max(0, start - 1));
+    finalCaret = start !== end ? start : Math.max(0, start - 1);
   } else if (action === 'clear') {
     // 全部清除
     input.value = '';
-    input.focus();
-    input.setSelectionRange(0, 0);
+    finalCaret = 0;
   } else if (action === 'percent') {
     // 百分比：直接換算現有數值 / 100
     const v = parseFloat(val) || 0;
@@ -333,6 +325,15 @@ function handleInputWithCalcBtn(input, action, value) {
   // 計算機按鍵是直接改 input.value，不會自動觸發 input 事件。
   // 手動同步寬度，避免從 0 輸入 123 時最後一位被裁掉。
   input.resizeCurrencyAmountInput?.();
+  if (finalCaret !== null) {
+    // Chrome 偶爾在右對齊 input 改變寬度後，把游標跳回左邊；等重排完成
+    // 再設定一次，讓鍵盤輸入 1 後保持 1| 而不是 |1。
+    requestAnimationFrame(() => {
+      if (!input.isConnected) return;
+      input.focus();
+      input.setSelectionRange(finalCaret, finalCaret);
+    });
+  }
 }
 
 // 貼上純數字時維持原數值；貼上簡單四則算式時先算出結果。
