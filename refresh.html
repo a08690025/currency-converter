@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>更新貨幣轉換器</title>
+  <style>
+    body { margin: 0; min-height: 100dvh; display: grid; place-items: center; background: #f7f7ff; color: #272535; font-family: system-ui, sans-serif; }
+    main { padding: 28px; text-align: center; }
+  </style>
+</head>
+<body>
+  <main>正在更新最新版本…</main>
+  <script>
+    // 只移除舊的離線快取與 Service Worker；localStorage 的貨幣清單和設定會保留。
+    (async () => {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys
+          .filter((key) => key.startsWith('currency-converter-'))
+          .map((key) => caches.delete(key)));
+      }
+      location.replace('./?refreshed=20260920-keyboard-operators');
+    })().catch(() => location.replace('./?refreshed=20260920-keyboard-operators'));
+  </script>
+</body>
+</html>
