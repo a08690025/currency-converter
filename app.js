@@ -333,6 +333,39 @@ function handleInputWithCalcBtn(input, action, value) {
   input.resizeCurrencyAmountInput?.();
 }
 
+// 貼上純數字時維持原數值；貼上簡單四則算式時先算出結果。
+// 不用 eval，避免剪貼簿文字被當成程式執行。
+function getPastedAmount(text) {
+  const raw = String(text || '').replace(/[，,\s]/g, '').replace(/[xX×]/g, '*').replace(/÷/g, '/');
+  const digitsOnly = raw.replace(/[^0-9.]/g, '');
+  if (!/[+\-*/]/.test(raw)) return digitsOnly;
+
+  const tokens = raw.match(/\d*\.?\d+|[+\-*/]/g);
+  if (!tokens || tokens.join('') !== raw || tokens.length < 3 || tokens.length % 2 === 0) return digitsOnly;
+  if (tokens.some((token, index) => (index % 2 === 0 ? !Number.isFinite(Number(token)) : !'+-*/'.includes(token)))) {
+    return digitsOnly;
+  }
+
+  const values = [Number(tokens[0])];
+  const ops = [];
+  const precedence = (op) => (op === '*' || op === '/' ? 2 : 1);
+  const reduce = () => {
+    const b = values.pop();
+    const a = values.pop();
+    const op = ops.pop();
+    values.push(op === '+' ? a + b : op === '-' ? a - b : op === '*' ? a * b : (b === 0 ? 0 : a / b));
+  };
+  for (let index = 1; index < tokens.length; index += 2) {
+    const op = tokens[index];
+    while (ops.length && precedence(ops[ops.length - 1]) >= precedence(op)) reduce();
+    ops.push(op);
+    values.push(Number(tokens[index + 1]));
+  }
+  while (ops.length) reduce();
+  const result = values[0];
+  return Number.isFinite(result) ? String(parseFloat(result.toPrecision(12))) : digitsOnly;
+}
+
 // 輸入框外使用覆蓋模式，輸入框短按則使用插入模式。
 function showPasteButton(position, mode = 'replace', lockMs = 0) {
   document.querySelector('.currency-replace-paste')?.remove();
@@ -374,7 +407,7 @@ function showPasteButton(position, mode = 'replace', lockMs = 0) {
     if (!input) return;
     try {
       const text = await navigator.clipboard.readText();
-      const pastedText = text.replace(/[^0-9.]/g, '');
+      const pastedText = getPastedAmount(text);
       if (mode === 'insert') {
         const start = insertionRange ? insertionRange.start : input.selectionStart;
         const end = insertionRange ? insertionRange.end : input.selectionEnd;
@@ -1258,6 +1291,14 @@ function startInlineEdit(code, clickEvent) {
   };
   input.resizeCurrencyAmountInput = resizeInputWidth;
   input.addEventListener('input', resizeInputWidth);
+  input.addEventListener('paste', (e) => {
+    const text = e.clipboardData && e.clipboardData.getData('text');
+    if (text === null || text === undefined) return;
+    e.preventDefault();
+    const pastedText = getPastedAmount(text);
+    input.setRangeText(pastedText, input.selectionStart, input.selectionEnd, 'end');
+    resizeInputWidth();
+  });
   resizeInputWidth();
 
   // 手機在「長按全選」後可能不肯把下一次短按交給原生游標。
