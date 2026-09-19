@@ -316,14 +316,12 @@ function handleInputWithCalcBtn(input, action, value) {
     input.value = String(v / 100);
     input.focus();
   } else if (action === 'equals' || action === 'op') {
-    // 點擊等號或加減乘除 ➔ 提交當前編輯，並執行計算機對應動作
-    // 這邊會調用 input.blur()，觸發 commitEdit
+    // 點擊等號或加減乘除 ➔ 先提交當前編輯，再立刻執行運算。
+    // blur 的 commitEdit 會同步重新渲染清單；不能再延遲處理，否則手機
+    // WebView 的下一個觸控可能先到，導致加／減按鍵看起來沒有作用。
     input.blur();
-    
-    // 稍候 50ms 讓編輯提交（並重新 renderCurrencyList）完成後，再執行對應運算
-    setTimeout(() => {
-      handleCalcBtn(action, value);
-    }, 60);
+    handleCalcBtn(action, value);
+    return;
   }
 
   // 計算機按鍵是直接改 input.value，不會自動觸發 input 事件。
