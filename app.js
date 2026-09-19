@@ -1158,15 +1158,7 @@ function bindEvents() {
       // keydown 已 preventDefault，仍可能再觸發文字輸入；自行插入會造成 1|1。
       const isNativeNumberKey = /^\d$/.test(e.key) || /^Numpad[0-9]$/.test(e.code || '')
         || e.key === '.' || e.key === ',';
-      if (isNativeNumberKey) {
-        // 必須在瀏覽器開始插字前完成全選；只在 beforeinput 選取會太晚，
-        // 某些 Chrome 會保留原本的 0 而變成 01。
-        if (document.activeElement.replaceOnFirstKeyboardDigit) {
-          document.activeElement.select();
-          document.activeElement.replaceOnFirstKeyboardDigit = false;
-        }
-        return;
-      }
+      if (isNativeNumberKey) return;
       // 運算符不可當文字輸入。
       const inlineOperationKeys = ['+', '-', '*', '/', 'Enter', '='];
       if (inlineOperationKeys.includes(e.key)) {
@@ -1471,10 +1463,14 @@ function startInlineEdit(code, clickEvent) {
     '=': ['equals', ''],
   };
   input.addEventListener('beforeinput', (e) => {
-    // 切換貨幣後的首個實體鍵盤數字覆蓋換算預覽值，但文字仍讓瀏覽器只插入一次。
+    // 切換貨幣後的首個實體鍵盤數字需要確實覆蓋換算預覽值。直接在
+    // beforeinput 攔下並寫入一次，避免 Chrome 的選取時機造成 01／0|1。
     if (e.inputType === 'insertText' && /^[0-9.,]$/.test(e.data || '')) {
       if (input.replaceOnFirstKeyboardDigit) {
-        input.select();
+        e.preventDefault();
+        input.value = e.data === ',' ? '.' : e.data;
+        input.resizeCurrencyAmountInput?.();
+        input.setSelectionRange(input.value.length, input.value.length);
         input.replaceOnFirstKeyboardDigit = false;
       }
       return;
