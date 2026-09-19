@@ -286,6 +286,12 @@ function handleInputWithCalcBtn(input, action, value) {
     // 在游標處插入數字
     input.value = val.slice(0, start) + value + val.slice(end);
     finalCaret = start + value.length;
+    // 起始 0 後再輸入整數時不保留前導 0；0.1 小數不受影響。
+    const zeroPrefix = /^0+(?=\d)/.exec(input.value);
+    if (zeroPrefix) {
+      input.value = input.value.slice(zeroPrefix[0].length);
+      finalCaret = Math.max(0, finalCaret - zeroPrefix[0].length);
+    }
   } else if (action === 'decimal') {
     // 插入小數點（若無）
     if (!val.includes('.')) {
@@ -1507,6 +1513,13 @@ function startInlineEdit(code, clickEvent) {
     '=': ['equals', ''],
   };
   input.addEventListener('beforeinput', (e) => {
+    // 輸入框自己的 keydown 已經手動寫入數字；若舊 Chrome 仍送出
+    // beforeinput，必須取消它，避免 1| 又被原生插成 1|1。
+    if (e.inputType === 'insertText' && /^[0-9.,]$/.test(e.data || '')
+      && Date.now() - (input.lastHandledKeyboardTextAt || 0) < 100) {
+      e.preventDefault();
+      return;
+    }
     // 沒有標準 keydown 的輸入法備援：只先全選，數字仍由瀏覽器原生寫入。
     if (e.inputType === 'insertText' && /^[0-9.,]$/.test(e.data || '')) {
       if (input.replaceOnFirstKeyboardDigit) {
@@ -1526,7 +1539,20 @@ function startInlineEdit(code, clickEvent) {
   // 監聽失去焦點與鍵盤動作
   input.addEventListener('blur', commitEdit);
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
+    const numpadMatch = /^Numpad([0-9])$/.exec(e.code || '');
+    const digit = /^\d$/.test(e.key) ? e.key : (numpadMatch ? numpadMatch[1] : null);
+    if (digit !== null || e.key === '.' || e.key === ',') {
+      // 在 input 自身攔截，比 document 冒泡階段更早，舊版 Chrome 不會再
+      // 追加第二個原生字元或重設游標。
+      e.preventDefault();
+      e.stopPropagation();
+      input.lastHandledKeyboardTextAt = Date.now();
+      if (input.replaceOnFirstKeyboardDigit) {
+        input.select();
+        input.replaceOnFirstKeyboardDigit = false;
+      }
+      handleInputWithCalcBtn(input, digit !== null ? 'digit' : 'decimal', digit || '');
+    } else if (e.key === 'Enter') {
       commitEdit();
     } else if (e.key === 'Escape') {
       cancelEdit();
