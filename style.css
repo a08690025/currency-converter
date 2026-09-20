@@ -370,10 +370,15 @@ input { font-family: var(--font); outline: none; border: none; background: trans
   border: none !important;            /* 無邊框 */
   box-shadow: none !important;        /* 無陰影 */
   outline: none !important;           /* 無外框 */
-  text-align: right;
+  /* 舊版 Chrome 在 right-aligned input 搭配中文輸入法時會把字尾游標畫在
+     數字左側。輸入框本身用最小寬度貼齊右緣，文字左對齊後視覺位置不變。 */
+  text-align: left;
+  direction: ltr;
+  unicode-bidi: plaintext;
   width: 150px;
   flex: 0 0 auto; /* 不可被貨幣代碼擠窄，避免長數字被裁掉 */
-  padding: 0 4px; /* 與金額文字對齊 */
+  padding: 0;
+  margin-right: 4px; /* 與原本 .currency-amount 的右側內距對齊 */
   font-variant-numeric: tabular-nums;
   caret-color: var(--accent); /* 顯示游標顏色 */
 }

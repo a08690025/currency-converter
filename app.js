@@ -1279,9 +1279,6 @@ function startInlineEdit(code, clickEvent) {
   const commaCount = (textToLeft.match(/,/g) || []).length;
   let targetCursorPos = caretOffset - commaCount;
 
-  // 必須在隱藏前量出數字寬度；display:none 後寬度會變成 0。
-  const amountWidth = amountEl.getBoundingClientRect().width;
-
   // 隱藏原本的金額標籤
   amountEl.style.display = 'none';
 
@@ -1306,13 +1303,14 @@ function startInlineEdit(code, clickEvent) {
     input.value = rawValue;
   }
 
-  // 初始寬度貼合數字，之後每輸入一個字就即時擴張，保留足夠空間顯示完整內容。
+  // 輸入框寬度貼合數字並靠右；文字在框內左對齊可避開舊 Chrome 的
+  // right-aligned caret 繪製問題，金額本體的位置仍與非編輯時一致。
   const amountStyle = window.getComputedStyle(amountEl);
   const measureContext = document.createElement('canvas').getContext('2d');
   measureContext.font = `${amountStyle.fontWeight} ${amountStyle.fontSize} ${amountStyle.fontFamily}`;
   const resizeInputWidth = () => {
     const textWidth = measureContext.measureText(input.value || '0').width;
-    let width = Math.ceil(Math.max(amountWidth, textWidth) + 14);
+    let width = Math.ceil(Math.max(2, textWidth + 2));
     input.style.width = `${width}px`;
     // Canvas 量測和 Android 實際字型偶有誤差；以 input 的真實 scrollWidth 再校正。
     if (input.isConnected && input.scrollWidth > input.clientWidth) {
@@ -1407,9 +1405,9 @@ function startInlineEdit(code, clickEvent) {
     if (!text) return input.setSelectionRange(0, 0);
     const rect = input.getBoundingClientRect();
     const inputStyle = window.getComputedStyle(input);
-    const paddingRight = Number.parseFloat(inputStyle.paddingRight) || 0;
+    const paddingLeft = Number.parseFloat(inputStyle.paddingLeft) || 0;
     const textWidth = measureContext.measureText(text).width;
-    const textLeft = rect.right - paddingRight - textWidth;
+    const textLeft = rect.left + paddingLeft;
     let nearest = 0;
     let nearestDistance = Infinity;
     for (let index = 0; index <= text.length; index++) {
