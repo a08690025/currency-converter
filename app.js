@@ -340,6 +340,7 @@ function handleInputWithCalcBtn(input, action, value) {
       input.setSelectionRange(finalCaret, finalCaret);
     });
   }
+  return finalCaret;
 }
 
 // 貼上純數字時維持原數值；貼上簡單四則算式時先算出結果。
@@ -1321,6 +1322,15 @@ function startInlineEdit(code, clickEvent) {
   };
   input.resizeCurrencyAmountInput = resizeInputWidth;
   input.addEventListener('input', () => {
+    // 中文輸入法有時忽略 keydown/beforeinput 的取消，最後仍送來一個真的
+    // input 事件。若它改動了剛由鍵盤處理器寫入的內容，立即回復該內容。
+    const pendingManualNumeric = input.pendingManualNumeric;
+    if (pendingManualNumeric && input.value !== pendingManualNumeric.value) {
+      input.value = pendingManualNumeric.value;
+      input.setSelectionRange(pendingManualNumeric.caret, pendingManualNumeric.caret);
+      input.pendingManualNumeric = null;
+      window.clearTimeout(input.pendingManualNumericTimer);
+    }
     // 計算機的 0 是起始值，後面接整數時不可形成 01／001；小數 0.1 保留。
     let caret = input.selectionStart;
     const zeroPrefix = /^0+(?=\d)/.exec(input.value);
@@ -1554,7 +1564,16 @@ function startInlineEdit(code, clickEvent) {
         input.select();
         input.replaceOnFirstKeyboardDigit = false;
       }
-      handleInputWithCalcBtn(input, digit !== null ? 'digit' : 'decimal', digit || '');
+      const expectedCaret = handleInputWithCalcBtn(input, digit !== null ? 'digit' : 'decimal', digit || '');
+      // 保留一小段時間等待中文輸入法可能延遲送來的第二次實際 input。
+      input.pendingManualNumeric = {
+        value: input.value,
+        caret: expectedCaret ?? input.value.length,
+      };
+      window.clearTimeout(input.pendingManualNumericTimer);
+      input.pendingManualNumericTimer = window.setTimeout(() => {
+        input.pendingManualNumeric = null;
+      }, 1000);
     } else if (e.key === 'Enter') {
       commitEdit();
     } else if (e.key === 'Escape') {
