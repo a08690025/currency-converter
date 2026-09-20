@@ -1377,24 +1377,17 @@ function startInlineEdit(code, clickEvent) {
     input.previewCaret.style.left = `${Math.round(x - rowRect.left)}px`;
   };
   input.addEventListener('pointerdown', (e) => {
+    // 手機由 touchstart/touchend 處理；桌面滑鼠若交給 Chrome 原生 click，
+    // 右對齊欄位會在放開時再次把游標覆蓋到字首。
+    if (e.pointerType === 'touch') return;
     const target = caretPositionFromClientX(e.clientX);
+    e.preventDefault();
+    input.focus();
     if (target.isBlank) {
-      // 瀏覽器稍後的原生 hit-test 會清掉同步 select()；攔截它並在下一幀
-      // 再選一次，讓桌面與手機的空白區點按都穩定維持全選。
-      e.preventDefault();
-      input.focus();
       input.select();
-      requestAnimationFrame(() => {
-        if (input.isConnected && document.activeElement === input) input.select();
-      });
       return;
     }
-    // 原生 touch/mouse 選取完成後可能再次覆蓋游標位置；下一幀重設一次。
-    requestAnimationFrame(() => {
-      if (input.isConnected && document.activeElement === input) {
-        input.setSelectionRange(target.position, target.position);
-      }
-    });
+    input.setSelectionRange(target.position, target.position);
   });
 
   // 將輸入框插入到原本金額標籤的前方
