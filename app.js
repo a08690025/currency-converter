@@ -1313,7 +1313,11 @@ function startInlineEdit(code, clickEvent) {
     if (!visualCaret || !input.isConnected) return;
     const parentRect = input.parentElement.getBoundingClientRect();
     const rect = input.getBoundingClientRect();
-    const index = atEnd ? input.value.length : (input.selectionStart ?? input.value.length);
+    // Windows 中文輸入法在數字送出後，還可能補一個 selection 事件並把
+    // selectionStart 回報成 0。剛由鍵盤輸入時，顯示用游標一律維持在字尾；
+    // 使用者自行點選數字時會立刻解除，仍能在中間插入。
+    const keepAtEnd = atEnd || (input.forceVisualEndUntil || 0) > Date.now();
+    const index = keepAtEnd ? input.value.length : (input.selectionStart ?? input.value.length);
     visualCaret.style.left = `${Math.round(rect.left - parentRect.left + measureContext.measureText(input.value.slice(0, index)).width)}px`;
   };
   const resizeInputWidth = () => {
@@ -1383,6 +1387,7 @@ function startInlineEdit(code, clickEvent) {
   // 解除短暫游標鎖定，保留原本在數字中間插入的能力。
   input.addEventListener('pointerdown', () => {
     input.manualKeyboardCaretLock = null;
+    input.forceVisualEndUntil = 0;
   });
   const restorePendingManualCaret = () => {
     const pending = input.pendingManualNumeric;
@@ -1583,6 +1588,8 @@ function startInlineEdit(code, clickEvent) {
     if (digit !== null || e.key === '.' || e.key === ',') {
       // 實體鍵盤完全交給瀏覽器原生輸入，中文輸入法才不會再補送第二個 1。
       // 只在切換貨幣後的第一鍵先全選，讓該鍵覆蓋換算預覽值。
+      // 中文輸入法隨後的 select 事件不可把顯示游標畫回左端。
+      input.forceVisualEndUntil = Date.now() + 1200;
       if (input.replaceOnFirstKeyboardDigit) {
         input.select();
         input.replaceOnFirstKeyboardDigit = false;
