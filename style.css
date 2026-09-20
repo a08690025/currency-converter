@@ -371,8 +371,7 @@ input { font-family: var(--font); outline: none; border: none; background: trans
   border: none !important;            /* 無邊框 */
   box-shadow: none !important;        /* 無陰影 */
   outline: none !important;           /* 無外框 */
-  /* 舊版 Chrome 在 right-aligned input 搭配中文輸入法時會把字尾游標畫在
-     數字左側。輸入框本身用最小寬度貼齊右緣，文字左對齊後視覺位置不變。 */
+  /* 輸入框本身用最小寬度貼齊右緣，文字左對齊後視覺位置不變。 */
   text-align: left;
   direction: ltr;
   unicode-bidi: plaintext;
@@ -381,22 +380,8 @@ input { font-family: var(--font); outline: none; border: none; background: trans
   padding: 0;
   margin-right: 4px; /* 與原本 .currency-amount 的右側內距對齊 */
   font-variant-numeric: tabular-nums;
-  caret-color: transparent;
+  caret-color: var(--accent);
 }
-
-.currency-inline-caret {
-  position: absolute;
-  z-index: 2;
-  width: 2px;
-  height: 22px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: var(--accent);
-  pointer-events: none;
-  animation: currency-caret-blink 1s step-end infinite;
-}
-
-@keyframes currency-caret-blink { 50% { opacity: 0; } }
 
 /* 輸入框以外的貨幣列右鍵：顯示貼上覆蓋按鈕 */
 .currency-replace-paste {

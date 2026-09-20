@@ -1308,17 +1308,14 @@ function startInlineEdit(code, clickEvent) {
   const amountStyle = window.getComputedStyle(amountEl);
   const measureContext = document.createElement('canvas').getContext('2d');
   measureContext.font = `${amountStyle.fontWeight} ${amountStyle.fontSize} ${amountStyle.fontFamily}`;
-  let visualCaret = null;
-  const updateVisualCaret = (atEnd = false) => {
-    if (!visualCaret || !input.isConnected) return;
-    const parentRect = input.parentElement.getBoundingClientRect();
-    const rect = input.getBoundingClientRect();
-    // Windows 中文輸入法在數字送出後，還可能補一個 selection 事件並把
-    // selectionStart 回報成 0。剛由鍵盤輸入時，顯示用游標一律維持在字尾；
-    // 使用者自行點選數字時會立刻解除，仍能在中間插入。
-    const keepAtEnd = atEnd || (input.forceVisualEndUntil || 0) > Date.now();
-    const index = keepAtEnd ? input.value.length : (input.selectionStart ?? input.value.length);
-    visualCaret.style.left = `${Math.round(rect.left - parentRect.left + measureContext.measureText(input.value.slice(0, index)).width)}px`;
+  // 只使用瀏覽器原生游標。中文 IME 的後續選取事件會真的改動游標位置，
+  // 因此在鍵盤數字輸入期間把「原生」選取範圍校正到字尾，而不是另畫假游標。
+  const keepNativeCaretAtEnd = () => {
+    if (!input.caretLockedToEnd || !input.isConnected || document.activeElement !== input) return;
+    const end = input.value.length;
+    if (input.selectionStart !== end || input.selectionEnd !== end) {
+      input.setSelectionRange(end, end);
+    }
   };
   const resizeInputWidth = () => {
     const textWidth = measureContext.measureText(input.value || '0').width;
@@ -1349,6 +1346,7 @@ function startInlineEdit(code, clickEvent) {
       caret = Math.max(0, (caret ?? 0) - zeroPrefix[0].length);
     }
     const forceCaretToEnd = input.forceCaretToEndAfterNativeInput;
+    if (forceCaretToEnd || input.caretLockedToEnd) input.caretLockedToEnd = true;
     if (forceCaretToEnd) caret = input.value.length;
     resizeInputWidth();
     // 寬度重排後保留瀏覽器已計算好的插入位置，不自行新增任何文字。
@@ -1357,11 +1355,11 @@ function startInlineEdit(code, clickEvent) {
     });
     // Chrome 版本較舊時，輸入事件結束後才會更新繪製游標；再延後一次可
     // 確保首個數字顯示為 1|，而不是 |1。
-    if (forceCaretToEnd) window.setTimeout(() => {
-      if (input.isConnected && document.activeElement === input) {
-        input.setSelectionRange(input.value.length, input.value.length);
-      }
-    }, 0);
+    if (forceCaretToEnd || input.caretLockedToEnd) {
+      requestAnimationFrame(keepNativeCaretAtEnd);
+      window.setTimeout(keepNativeCaretAtEnd, 0);
+      window.setTimeout(keepNativeCaretAtEnd, 50);
+    }
     if (forceCaretToEnd && !input.firstKeyCaretCorrectionActive) {
       // 舊版 Chrome 有時會在 input／動畫幀都結束後才發出 selectionchange，
       // 把右對齊輸入框畫成 |1。短暫監聽該事件並只校正這一次首鍵。
@@ -1387,7 +1385,7 @@ function startInlineEdit(code, clickEvent) {
   // 解除短暫游標鎖定，保留原本在數字中間插入的能力。
   input.addEventListener('pointerdown', () => {
     input.manualKeyboardCaretLock = null;
-    input.forceVisualEndUntil = 0;
+    input.caretLockedToEnd = false;
   });
   const restorePendingManualCaret = () => {
     const pending = input.pendingManualNumeric;
@@ -1436,10 +1434,6 @@ function startInlineEdit(code, clickEvent) {
 
   // 將輸入框插入到原本金額標籤的前方
   amountEl.parentNode.insertBefore(input, amountEl);
-  visualCaret = document.createElement('span');
-  visualCaret.className = 'currency-inline-caret';
-  visualCaret.setAttribute('aria-hidden', 'true');
-  amountEl.parentNode.appendChild(visualCaret);
   
   // 聚焦
   input.focus();
@@ -1451,7 +1445,6 @@ function startInlineEdit(code, clickEvent) {
     const finalPos = Math.max(0, Math.min(input.value.length, targetCursorPos));
     input.setSelectionRange(finalPos, finalPos);
   }
-  updateVisualCaret();
   if (clickEvent && clickEvent.showPasteButton) {
     const pastePosition = clickEvent.pasteMode === 'insert'
       ? { clientX: clickEvent.clientX, clientY: Math.min(input.getBoundingClientRect().bottom + 10, window.innerHeight - 48) }
@@ -1467,6 +1460,7 @@ function startInlineEdit(code, clickEvent) {
     e.stopPropagation();
     clearPendingPasteButton();
     input.focus();
+    input.caretLockedToEnd = false;
     // 短按游標位置完全交給手機瀏覽器原生處理，準確對應手指位置。
     touchPasteLongPress = false;
     lastTouchPasteAt = Date.now();
@@ -1566,6 +1560,7 @@ function startInlineEdit(code, clickEvent) {
     }
     // 沒有標準 keydown 的輸入法備援：只先全選，數字仍由瀏覽器原生寫入。
     if (e.inputType === 'insertText' && /^[0-9.,]$/.test(e.data || '')) {
+      input.caretLockedToEnd = true;
       if (input.replaceOnFirstKeyboardDigit) {
         input.select();
         input.replaceOnFirstKeyboardDigit = false;
@@ -1588,23 +1583,21 @@ function startInlineEdit(code, clickEvent) {
     if (digit !== null || e.key === '.' || e.key === ',') {
       // 實體鍵盤完全交給瀏覽器原生輸入，中文輸入法才不會再補送第二個 1。
       // 只在切換貨幣後的第一鍵先全選，讓該鍵覆蓋換算預覽值。
-      // 中文輸入法隨後的 select 事件不可把顯示游標畫回左端。
-      input.forceVisualEndUntil = Date.now() + 1200;
+      // 中文輸入法隨後的 select 事件也要維持真正的原生游標在字尾。
+      input.caretLockedToEnd = true;
       if (input.replaceOnFirstKeyboardDigit) {
         input.select();
         input.replaceOnFirstKeyboardDigit = false;
       }
+    } else if (/^(ArrowLeft|ArrowRight|Home|End)$/.test(e.key)) {
+      input.caretLockedToEnd = false;
     } else if (e.key === 'Enter') {
       commitEdit();
     } else if (e.key === 'Escape') {
       cancelEdit();
     }
   });
-  input.addEventListener('keyup', () => {
-    // 中文 IME 的原生游標可能畫在左邊；顯示用游標固定跟隨字尾。
-    updateVisualCaret(true);
-  });
-  input.addEventListener('select', () => updateVisualCaret());
+  input.addEventListener('select', keepNativeCaretAtEnd);
 }
 
 async function init() {
