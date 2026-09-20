@@ -1373,6 +1373,11 @@ function startInlineEdit(code, clickEvent) {
       }, 120);
     }
   });
+  // 中文輸入法可能在 keydown 完成後才重設游標；使用者親自點選時立即
+  // 解除短暫游標鎖定，保留原本在數字中間插入的能力。
+  input.addEventListener('pointerdown', () => {
+    input.manualKeyboardCaretLock = null;
+  });
   input.addEventListener('paste', (e) => {
     const text = e.clipboardData && e.clipboardData.getData('text');
     if (text === null || text === undefined) return;
@@ -1574,6 +1579,21 @@ function startInlineEdit(code, clickEvent) {
       input.pendingManualNumericTimer = window.setTimeout(() => {
         input.pendingManualNumeric = null;
       }, 1000);
+      // 依序跨過中文輸入法的延遲處理階段，始終將這次鍵盤輸入的游標維持
+      // 在字尾。下一次鍵盤輸入或使用者手動點選都會替換／解除這個鎖定。
+      const caretLock = { value: input.value, caret: expectedCaret ?? input.value.length };
+      input.manualKeyboardCaretLock = caretLock;
+      for (const delay of [0, 50, 150, 350, 700]) {
+        window.setTimeout(() => {
+          if (input.manualKeyboardCaretLock !== caretLock) return;
+          if (input.isConnected && document.activeElement === input && input.value === caretLock.value) {
+            input.setSelectionRange(caretLock.caret, caretLock.caret);
+          }
+          if (delay === 700 && input.manualKeyboardCaretLock === caretLock) {
+            input.manualKeyboardCaretLock = null;
+          }
+        }, delay);
+      }
     } else if (e.key === 'Enter') {
       commitEdit();
     } else if (e.key === 'Escape') {
