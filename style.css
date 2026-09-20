@@ -389,6 +389,23 @@ input { font-family: var(--font); outline: none; border: none; background: trans
   opacity: 1;
 }
 
+/* 切換貨幣時灰色換算值是預覽，不放進 IME 的實際輸入內容。
+   這條游標只負責標示預覽數字的點按位置。 */
+.currency-preview-caret {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 24px;
+  transform: translate(-1px, -50%);
+  background: var(--accent);
+  pointer-events: none;
+  animation: currency-caret-blink 1s step-end infinite;
+}
+
+@keyframes currency-caret-blink {
+  50% { opacity: 0; }
+}
+
 /* 輸入框以外的貨幣列右鍵：顯示貼上覆蓋按鈕 */
 .currency-replace-paste {
   position: fixed;

@@ -279,6 +279,8 @@ function applyOperator() {
 function handleInputWithCalcBtn(input, action, value) {
   input.hasUserInput = true;
   input.previewOnly = false;
+  input.previewCaret?.remove();
+  input.previewCaret = null;
   const start = input.selectionStart;
   const end = input.selectionEnd;
   let val = input.value;
@@ -430,6 +432,8 @@ function showPasteButton(position, mode = 'replace', lockMs = 0) {
       }
       input.hasUserInput = true;
       input.previewOnly = false;
+      input.previewCaret?.remove();
+      input.previewCaret = null;
       input.resizeCurrencyAmountInput?.();
       input.focus();
     } catch (error) {
@@ -1319,6 +1323,8 @@ function startInlineEdit(code, clickEvent) {
   input.addEventListener('input', () => {
     input.hasUserInput = true;
     input.previewOnly = false;
+    input.previewCaret?.remove();
+    input.previewCaret = null;
     // 只有前導零需要正規化；其餘游標位置完全保留給瀏覽器與 IME。
     const zeroPrefix = /^0+(?=\d)/.exec(input.value);
     if (zeroPrefix) input.value = input.value.slice(zeroPrefix[0].length);
@@ -1331,35 +1337,59 @@ function startInlineEdit(code, clickEvent) {
     input.setRangeText(pastedText, input.selectionStart, input.selectionEnd, 'end');
     input.hasUserInput = true;
     input.previewOnly = false;
+    input.previewCaret?.remove();
+    input.previewCaret = null;
   });
 
   // 右對齊 input 在部分桌面／手機瀏覽器會把觸控游標誤判到字首。
   // 依實際字體寬度找出最近的字元邊界，確保可在數字中間插入。
-  const caretPositionFromClientX = (clientX) => {
-    const text = input.value;
-    if (!text) return { position: 0, isBlank: false };
+  const getCaretTarget = (clientX, text) => {
+    if (!text) return { position: 0, isBlank: false, boundary: null };
     const rect = input.getBoundingClientRect();
     const style = window.getComputedStyle(input);
     const canvas = document.createElement('canvas').getContext('2d');
     canvas.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
     const paddingRight = Number.parseFloat(style.paddingRight) || 0;
     const textLeft = rect.right - paddingRight - canvas.measureText(text).width;
-    if (clientX < textLeft - 12) return { position: 0, isBlank: true };
+    if (clientX < textLeft - 12) return { position: 0, isBlank: true, boundary: textLeft };
 
     let position = 0;
     let distance = Infinity;
+    let closestBoundary = textLeft;
     for (let index = 0; index <= text.length; index++) {
       const boundary = textLeft + canvas.measureText(text.slice(0, index)).width;
       const nextDistance = Math.abs(clientX - boundary);
       if (nextDistance < distance) {
         position = index;
         distance = nextDistance;
+        closestBoundary = boundary;
       }
     }
-    return { position, isBlank: false };
+    return { position, isBlank: false, boundary: closestBoundary };
+  };
+  const caretPositionFromClientX = (clientX) => {
+    const text = input.previewOnly ? rawValue : input.value;
+    return getCaretTarget(clientX, text);
+  };
+  const showPreviewCaret = (target) => {
+    if (!input.previewOnly || !input.previewCaret) return;
+    const inputRect = input.getBoundingClientRect();
+    const rowRect = input.parentElement.getBoundingClientRect();
+    const fallbackX = inputRect.right;
+    const x = target?.boundary ?? fallbackX;
+    input.previewCaret.style.left = `${Math.round(x - rowRect.left)}px`;
   };
   input.addEventListener('pointerdown', (e) => {
     const target = caretPositionFromClientX(e.clientX);
+    if (input.previewOnly) {
+      // 換算預覽仍是空的原生輸入值，避免中文輸入法把第一個字插到最左邊；
+      // 以視覺游標標示使用者在灰色預覽數字中點到的確切位置。
+      e.preventDefault();
+      input.focus();
+      input.setSelectionRange(0, 0);
+      showPreviewCaret(target);
+      return;
+    }
     if (target.isBlank) {
       // 瀏覽器稍後的原生 hit-test 會清掉同步 select()；攔截它並在下一幀
       // 再選一次，讓桌面與手機的空白區點按都穩定維持全選。
@@ -1381,6 +1411,14 @@ function startInlineEdit(code, clickEvent) {
 
   // 將輸入框插入到原本金額標籤的前方
   amountEl.parentNode.insertBefore(input, amountEl);
+  if (input.previewOnly) {
+    const previewCaret = document.createElement('span');
+    previewCaret.className = 'currency-preview-caret';
+    previewCaret.setAttribute('aria-hidden', 'true');
+    input.parentNode.appendChild(previewCaret);
+    input.previewCaret = previewCaret;
+    showPreviewCaret();
+  }
   
   // 聚焦
   input.focus();
@@ -1418,6 +1456,13 @@ function startInlineEdit(code, clickEvent) {
     // 手指點在數字左側空白時，明確全選；點到數字本體才交給原生插入游標。
     if (touch) {
       const target = caretPositionFromClientX(touch.clientX);
+      if (input.previewOnly) {
+        e.preventDefault();
+        input.focus();
+        input.setSelectionRange(0, 0);
+        showPreviewCaret(target);
+        return;
+      }
       if (target.isBlank) {
         touchBlankSelect = true;
         e.preventDefault();
