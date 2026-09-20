@@ -1516,8 +1516,9 @@ function startInlineEdit(code, clickEvent) {
     // 輸入框自己的 keydown 已經手動寫入數字；若舊 Chrome 仍送出
     // beforeinput，必須取消它，避免 1| 又被原生插成 1|1。
     if (e.inputType === 'insertText' && /^[0-9.,]$/.test(e.data || '')
-      && Date.now() - (input.lastHandledKeyboardTextAt || 0) < 100) {
+      && input.ignoreNextNativeNumericBeforeInput) {
       e.preventDefault();
+      input.ignoreNextNativeNumericBeforeInput = false;
       return;
     }
     // 沒有標準 keydown 的輸入法備援：只先全選，數字仍由瀏覽器原生寫入。
@@ -1546,7 +1547,9 @@ function startInlineEdit(code, clickEvent) {
       // 追加第二個原生字元或重設游標。
       e.preventDefault();
       e.stopPropagation();
-      input.lastHandledKeyboardTextAt = Date.now();
+      // 中文輸入法可能在 keydown 結束很久後才補送 beforeinput，不能用
+      // 固定毫秒數判斷；保留旗標直到那一次原生數字事件真正抵達。
+      input.ignoreNextNativeNumericBeforeInput = true;
       if (input.replaceOnFirstKeyboardDigit) {
         input.select();
         input.replaceOnFirstKeyboardDigit = false;
