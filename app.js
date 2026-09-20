@@ -1308,8 +1308,8 @@ function startInlineEdit(code, clickEvent) {
     input.value = rawValue;
   }
 
-  // 輸入框寬度貼合數字並靠右；文字在框內左對齊可避開舊 Chrome 的
-  // right-aligned caret 繪製問題，金額本體的位置仍與非編輯時一致。
+  // 輸入框寬度貼合數字並靠右；金額文字也必須靠右，避免輸入框的實際
+  // 最小寬度大於單一數字時，游標被畫到左緣而出現 |1。
   const amountStyle = window.getComputedStyle(amountEl);
   const measureContext = document.createElement('canvas').getContext('2d');
   measureContext.font = `${amountStyle.fontWeight} ${amountStyle.fontSize} ${amountStyle.fontFamily}`;
@@ -1330,7 +1330,12 @@ function startInlineEdit(code, clickEvent) {
     const index = input.displayCaretAtEnd
       ? input.value.length
       : (input.selectionStart ?? input.value.length);
-    visualCaret.style.left = `${Math.round(rect.left - parentRect.left + measureContext.measureText(input.value.slice(0, index)).width)}px`;
+    const inputStyle = window.getComputedStyle(input);
+    const paddingRight = Number.parseFloat(inputStyle.paddingRight) || 0;
+    const fullTextWidth = measureContext.measureText(input.value).width;
+    const textLeft = rect.right - paddingRight - fullTextWidth;
+    const caretOffset = measureContext.measureText(input.value.slice(0, index)).width;
+    visualCaret.style.left = `${Math.round(textLeft - parentRect.left + caretOffset)}px`;
   };
   const resizeInputWidth = () => {
     const textWidth = measureContext.measureText(input.value || '0').width;
@@ -1436,9 +1441,9 @@ function startInlineEdit(code, clickEvent) {
     if (!text) return input.setSelectionRange(0, 0);
     const rect = input.getBoundingClientRect();
     const inputStyle = window.getComputedStyle(input);
-    const paddingLeft = Number.parseFloat(inputStyle.paddingLeft) || 0;
+    const paddingRight = Number.parseFloat(inputStyle.paddingRight) || 0;
     const textWidth = measureContext.measureText(text).width;
-    const textLeft = rect.left + paddingLeft;
+    const textLeft = rect.right - paddingRight - textWidth;
     let nearest = 0;
     let nearestDistance = Infinity;
     for (let index = 0; index <= text.length; index++) {

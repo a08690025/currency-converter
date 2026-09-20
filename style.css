@@ -371,8 +371,8 @@ input { font-family: var(--font); outline: none; border: none; background: trans
   border: none !important;            /* 無邊框 */
   box-shadow: none !important;        /* 無陰影 */
   outline: none !important;           /* 無外框 */
-  /* 輸入框本身用最小寬度貼齊右緣，文字左對齊後視覺位置不變。 */
-  text-align: left;
+  /* 金額固定靠右，游標就會緊接在數字字尾，而非輸入框的左緣。 */
+  text-align: right;
   direction: ltr;
   unicode-bidi: plaintext;
   width: 150px;
