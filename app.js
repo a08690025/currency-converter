@@ -1376,18 +1376,29 @@ function startInlineEdit(code, clickEvent) {
     const x = target?.boundary ?? fallbackX;
     input.previewCaret.style.left = `${Math.round(x - rowRect.left)}px`;
   };
+  const applyPointerCaret = (clientX) => {
+    const target = caretPositionFromClientX(clientX);
+    input.focus();
+    if (target.isBlank) input.select();
+    else input.setSelectionRange(target.position, target.position);
+  };
   input.addEventListener('pointerdown', (e) => {
     // 手機由 touchstart/touchend 處理；桌面滑鼠若交給 Chrome 原生 click，
     // 右對齊欄位會在放開時再次把游標覆蓋到字首。
     if (e.pointerType === 'touch') return;
-    const target = caretPositionFromClientX(e.clientX);
     e.preventDefault();
-    input.focus();
-    if (target.isBlank) {
-      input.select();
-      return;
-    }
-    input.setSelectionRange(target.position, target.position);
+    applyPointerCaret(e.clientX);
+  });
+  input.addEventListener('pointerup', (e) => {
+    if (e.pointerType === 'touch') return;
+    // 部分 Chromium 版本在 pointerup 之後才套用原生選取；再鎖定一次。
+    e.preventDefault();
+    applyPointerCaret(e.clientX);
+  });
+  input.addEventListener('mouseup', (e) => {
+    // pointer 事件之後的相容性 mouseup 也可能改寫選取範圍。
+    e.preventDefault();
+    applyPointerCaret(e.clientX);
   });
 
   // 將輸入框插入到原本金額標籤的前方
