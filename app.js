@@ -1361,7 +1361,14 @@ function startInlineEdit(code, clickEvent) {
   input.addEventListener('pointerdown', (e) => {
     const target = caretPositionFromClientX(e.clientX);
     if (target.isBlank) {
+      // 瀏覽器稍後的原生 hit-test 會清掉同步 select()；攔截它並在下一幀
+      // 再選一次，讓桌面與手機的空白區點按都穩定維持全選。
+      e.preventDefault();
+      input.focus();
       input.select();
+      requestAnimationFrame(() => {
+        if (input.isConnected && document.activeElement === input) input.select();
+      });
       return;
     }
     // 原生 touch/mouse 選取完成後可能再次覆蓋游標位置；下一幀重設一次。
