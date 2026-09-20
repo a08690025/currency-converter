@@ -1339,22 +1339,60 @@ function startInlineEdit(code, clickEvent) {
   });
 
   // 右對齊 input 在部分桌面／手機瀏覽器會把觸控游標誤判到字首。
-  // 依實際字體寬度找出最近的字元邊界，確保可在數字中間插入。
-  const getCaretTarget = (clientX, text) => {
-    if (!text) return { position: 0, isBlank: false, boundary: null };
+  // 不能用 Canvas 量測：Canvas 不會完整套用 input 的 tabular-nums、字距與
+  // 瀏覽器實際排版規則。改用一個不可見、但與 input 完全同寬同字型的鏡像文字，
+  // 直接讀取每個字元在畫面上的實際邊界。
+  const caretMirror = document.createElement('div');
+  caretMirror.className = 'currency-caret-mirror';
+  caretMirror.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(caretMirror);
+
+  const syncCaretMirror = (text) => {
     const rect = input.getBoundingClientRect();
     const style = window.getComputedStyle(input);
-    const canvas = document.createElement('canvas').getContext('2d');
-    canvas.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    const paddingRight = Number.parseFloat(style.paddingRight) || 0;
-    const textLeft = rect.right - paddingRight - canvas.measureText(text).width;
+    Object.assign(caretMirror.style, {
+      left: `${rect.left}px`,
+      top: `${rect.top}px`,
+      width: `${rect.width}px`,
+      height: `${rect.height}px`,
+      fontFamily: style.fontFamily,
+      fontSize: style.fontSize,
+      fontWeight: style.fontWeight,
+      fontStyle: style.fontStyle,
+      fontStretch: style.fontStretch,
+      fontVariantNumeric: style.fontVariantNumeric,
+      letterSpacing: style.letterSpacing,
+      lineHeight: style.lineHeight,
+      textAlign: style.textAlign,
+      direction: style.direction,
+      unicodeBidi: style.unicodeBidi,
+      padding: style.padding,
+      boxSizing: style.boxSizing,
+    });
+    caretMirror.replaceChildren(...Array.from(text, (char) => {
+      const span = document.createElement('span');
+      span.className = 'currency-caret-mirror-char';
+      span.textContent = char;
+      return span;
+    }));
+  };
+
+  const getCaretTarget = (clientX, text) => {
+    if (!text) return { position: 0, isBlank: false, boundary: null };
+    syncCaretMirror(text);
+    const chars = [...caretMirror.children];
+    const firstRect = chars[0]?.getBoundingClientRect();
+    const lastRect = chars.at(-1)?.getBoundingClientRect();
+    if (!firstRect || !lastRect) return { position: 0, isBlank: false, boundary: null };
+    const textLeft = firstRect.left;
     if (clientX < textLeft - 12) return { position: 0, isBlank: true, boundary: textLeft };
 
     let position = 0;
     let distance = Infinity;
     let closestBoundary = textLeft;
-    for (let index = 0; index <= text.length; index++) {
-      const boundary = textLeft + canvas.measureText(text.slice(0, index)).width;
+    const boundaries = [textLeft, ...chars.map((char) => char.getBoundingClientRect().right)];
+    for (let index = 0; index < boundaries.length; index++) {
+      const boundary = boundaries[index];
       const nextDistance = Math.abs(clientX - boundary);
       if (nextDistance < distance) {
         position = index;
@@ -1365,16 +1403,7 @@ function startInlineEdit(code, clickEvent) {
     return { position, isBlank: false, boundary: closestBoundary };
   };
   const caretPositionFromClientX = (clientX) => {
-    const text = input.previewOnly ? rawValue : input.value;
-    return getCaretTarget(clientX, text);
-  };
-  const showPreviewCaret = (target) => {
-    if (!input.previewOnly || !input.previewCaret) return;
-    const inputRect = input.getBoundingClientRect();
-    const rowRect = input.parentElement.getBoundingClientRect();
-    const fallbackX = inputRect.right;
-    const x = target?.boundary ?? fallbackX;
-    input.previewCaret.style.left = `${Math.round(x - rowRect.left)}px`;
+    return getCaretTarget(clientX, input.value);
   };
   const applyPointerCaret = (clientX) => {
     const target = caretPositionFromClientX(clientX);
@@ -1488,6 +1517,7 @@ function startInlineEdit(code, clickEvent) {
   const commitEdit = () => {
     if (isCommitted) return;
     isCommitted = true;
+    caretMirror.remove();
 
     let textVal = input.value.trim();
     // 移除多餘字符，只保留數字和小數點
@@ -1527,6 +1557,7 @@ function startInlineEdit(code, clickEvent) {
   const cancelEdit = () => {
     if (isCommitted) return;
     isCommitted = true;
+    caretMirror.remove();
     renderCurrencyList(); // 重新渲染直接復原為文字
   };
 

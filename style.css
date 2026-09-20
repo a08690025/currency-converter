@@ -389,6 +389,20 @@ input { font-family: var(--font); outline: none; border: none; background: trans
   opacity: 1;
 }
 
+/* 只供 JS 量測每個字元的真實排版邊界；不可見且不接收觸控。 */
+.currency-caret-mirror {
+  position: fixed;
+  z-index: -1;
+  visibility: hidden;
+  pointer-events: none;
+  overflow: hidden;
+  white-space: pre;
+}
+
+.currency-caret-mirror-char {
+  display: inline-block;
+}
+
 /* 輸入框以外的貨幣列右鍵：顯示貼上覆蓋按鈕 */
 .currency-replace-paste {
   position: fixed;
