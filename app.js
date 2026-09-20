@@ -1333,6 +1333,45 @@ function startInlineEdit(code, clickEvent) {
     input.previewOnly = false;
   });
 
+  // 右對齊 input 在部分桌面／手機瀏覽器會把觸控游標誤判到字首。
+  // 依實際字體寬度找出最近的字元邊界，確保可在數字中間插入。
+  const caretPositionFromClientX = (clientX) => {
+    const text = input.value;
+    if (!text) return { position: 0, isBlank: false };
+    const rect = input.getBoundingClientRect();
+    const style = window.getComputedStyle(input);
+    const canvas = document.createElement('canvas').getContext('2d');
+    canvas.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const paddingRight = Number.parseFloat(style.paddingRight) || 0;
+    const textLeft = rect.right - paddingRight - canvas.measureText(text).width;
+    if (clientX < textLeft - 12) return { position: 0, isBlank: true };
+
+    let position = 0;
+    let distance = Infinity;
+    for (let index = 0; index <= text.length; index++) {
+      const boundary = textLeft + canvas.measureText(text.slice(0, index)).width;
+      const nextDistance = Math.abs(clientX - boundary);
+      if (nextDistance < distance) {
+        position = index;
+        distance = nextDistance;
+      }
+    }
+    return { position, isBlank: false };
+  };
+  input.addEventListener('pointerdown', (e) => {
+    const target = caretPositionFromClientX(e.clientX);
+    if (target.isBlank) {
+      input.select();
+      return;
+    }
+    // 原生 touch/mouse 選取完成後可能再次覆蓋游標位置；下一幀重設一次。
+    requestAnimationFrame(() => {
+      if (input.isConnected && document.activeElement === input) {
+        input.setSelectionRange(target.position, target.position);
+      }
+    });
+  });
+
   // 將輸入框插入到原本金額標籤的前方
   amountEl.parentNode.insertBefore(input, amountEl);
   
@@ -1356,6 +1395,7 @@ function startInlineEdit(code, clickEvent) {
   }
 
   let touchPasteLongPress = false;
+  let touchBlankSelect = false;
   let lastTouchPasteAt = 0;
   let lastTouchPastePosition = null;
   input.addEventListener('touchstart', (e) => {
@@ -1365,7 +1405,19 @@ function startInlineEdit(code, clickEvent) {
     input.focus();
     // 短按游標位置完全交給手機瀏覽器原生處理，準確對應手指位置。
     touchPasteLongPress = false;
+    touchBlankSelect = false;
     lastTouchPasteAt = Date.now();
+    // 固定寬度輸入框的左半部在視覺上是空白，但事件目標仍是 input。
+    // 手指點在數字左側空白時，明確全選；點到數字本體才交給原生插入游標。
+    if (touch) {
+      const target = caretPositionFromClientX(touch.clientX);
+      if (target.isBlank) {
+        touchBlankSelect = true;
+        e.preventDefault();
+        input.focus();
+        input.select();
+      }
+    }
     // 插入框貼上按鈕：水平跟手指，垂直固定在數字本體下方 10px。
     const inputRect = input.getBoundingClientRect();
     lastTouchPastePosition = touch
@@ -1373,7 +1425,7 @@ function startInlineEdit(code, clickEvent) {
       : null;
   }, { passive: false });
   input.addEventListener('touchend', () => {
-    if (!touchPasteLongPress) {
+    if (!touchPasteLongPress && !touchBlankSelect) {
       if (lastTouchPastePosition) schedulePasteButton(lastTouchPastePosition, 'insert');
     }
   }, { passive: true });
