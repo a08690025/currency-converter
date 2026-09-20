@@ -1568,50 +1568,17 @@ function startInlineEdit(code, clickEvent) {
     const numpadMatch = /^Numpad([0-9])$/.exec(e.code || '');
     const digit = /^\d$/.test(e.key) ? e.key : (numpadMatch ? numpadMatch[1] : null);
     if (digit !== null || e.key === '.' || e.key === ',') {
-      // 在 input 自身攔截，比 document 冒泡階段更早，舊版 Chrome 不會再
-      // 追加第二個原生字元或重設游標。
-      e.preventDefault();
-      e.stopPropagation();
-      // 中文輸入法可能在 keydown 結束很久後才補送 beforeinput，不能用
-      // 固定毫秒數判斷；保留旗標直到那一次原生數字事件真正抵達。
-      input.ignoreNextNativeNumericBeforeInput = true;
+      // 實體鍵盤完全交給瀏覽器原生輸入，中文輸入法才不會再補送第二個 1。
+      // 只在切換貨幣後的第一鍵先全選，讓該鍵覆蓋換算預覽值。
       if (input.replaceOnFirstKeyboardDigit) {
         input.select();
         input.replaceOnFirstKeyboardDigit = false;
-      }
-      const expectedCaret = handleInputWithCalcBtn(input, digit !== null ? 'digit' : 'decimal', digit || '');
-      // 保留一小段時間等待中文輸入法可能延遲送來的第二次實際 input。
-      input.pendingManualNumeric = {
-        value: input.value,
-        caret: expectedCaret ?? input.value.length,
-      };
-      window.clearTimeout(input.pendingManualNumericTimer);
-      input.pendingManualNumericTimer = window.setTimeout(() => {
-        input.pendingManualNumeric = null;
-      }, 1000);
-      // 依序跨過中文輸入法的延遲處理階段，始終將這次鍵盤輸入的游標維持
-      // 在字尾。下一次鍵盤輸入或使用者手動點選都會替換／解除這個鎖定。
-      const caretLock = { value: input.value, caret: expectedCaret ?? input.value.length };
-      input.manualKeyboardCaretLock = caretLock;
-      for (const delay of [0, 50, 150, 350, 700]) {
-        window.setTimeout(() => {
-          if (input.manualKeyboardCaretLock !== caretLock) return;
-          if (input.isConnected && document.activeElement === input && input.value === caretLock.value) {
-            input.setSelectionRange(caretLock.caret, caretLock.caret);
-          }
-          if (delay === 700 && input.manualKeyboardCaretLock === caretLock) {
-            input.manualKeyboardCaretLock = null;
-          }
-        }, delay);
       }
     } else if (e.key === 'Enter') {
       commitEdit();
     } else if (e.key === 'Escape') {
       cancelEdit();
     }
-  });
-  input.addEventListener('keyup', () => {
-    window.setTimeout(restorePendingManualCaret, 0);
   });
 }
 
