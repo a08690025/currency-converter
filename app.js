@@ -1308,6 +1308,14 @@ function startInlineEdit(code, clickEvent) {
   const amountStyle = window.getComputedStyle(amountEl);
   const measureContext = document.createElement('canvas').getContext('2d');
   measureContext.font = `${amountStyle.fontWeight} ${amountStyle.fontSize} ${amountStyle.fontFamily}`;
+  let visualCaret = null;
+  const updateVisualCaret = (atEnd = false) => {
+    if (!visualCaret || !input.isConnected) return;
+    const parentRect = input.parentElement.getBoundingClientRect();
+    const rect = input.getBoundingClientRect();
+    const index = atEnd ? input.value.length : (input.selectionStart ?? input.value.length);
+    visualCaret.style.left = `${Math.round(rect.left - parentRect.left + measureContext.measureText(input.value.slice(0, index)).width)}px`;
+  };
   const resizeInputWidth = () => {
     const textWidth = measureContext.measureText(input.value || '0').width;
     let width = Math.ceil(Math.max(2, textWidth + 2));
@@ -1423,6 +1431,10 @@ function startInlineEdit(code, clickEvent) {
 
   // 將輸入框插入到原本金額標籤的前方
   amountEl.parentNode.insertBefore(input, amountEl);
+  visualCaret = document.createElement('span');
+  visualCaret.className = 'currency-inline-caret';
+  visualCaret.setAttribute('aria-hidden', 'true');
+  amountEl.parentNode.appendChild(visualCaret);
   
   // 聚焦
   input.focus();
@@ -1434,6 +1446,7 @@ function startInlineEdit(code, clickEvent) {
     const finalPos = Math.max(0, Math.min(input.value.length, targetCursorPos));
     input.setSelectionRange(finalPos, finalPos);
   }
+  updateVisualCaret();
   if (clickEvent && clickEvent.showPasteButton) {
     const pastePosition = clickEvent.pasteMode === 'insert'
       ? { clientX: clickEvent.clientX, clientY: Math.min(input.getBoundingClientRect().bottom + 10, window.innerHeight - 48) }
@@ -1580,6 +1593,11 @@ function startInlineEdit(code, clickEvent) {
       cancelEdit();
     }
   });
+  input.addEventListener('keyup', () => {
+    // 中文 IME 的原生游標可能畫在左邊；顯示用游標固定跟隨字尾。
+    updateVisualCaret(true);
+  });
+  input.addEventListener('select', () => updateVisualCaret());
 }
 
 async function init() {

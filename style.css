@@ -333,6 +333,7 @@ input { font-family: var(--font); outline: none; border: none; background: trans
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  position: relative;
 }
 
 .currency-code {
@@ -380,8 +381,22 @@ input { font-family: var(--font); outline: none; border: none; background: trans
   padding: 0;
   margin-right: 4px; /* 與原本 .currency-amount 的右側內距對齊 */
   font-variant-numeric: tabular-nums;
-  caret-color: var(--accent); /* 顯示游標顏色 */
+  caret-color: transparent;
 }
+
+.currency-inline-caret {
+  position: absolute;
+  z-index: 2;
+  width: 2px;
+  height: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--accent);
+  pointer-events: none;
+  animation: currency-caret-blink 1s step-end infinite;
+}
+
+@keyframes currency-caret-blink { 50% { opacity: 0; } }
 
 /* 輸入框以外的貨幣列右鍵：顯示貼上覆蓋按鈕 */
 .currency-replace-paste {
