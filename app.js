@@ -663,7 +663,12 @@ function renderCurrencyList() {
           const isNearInput = e.clientX >= rect.left - 14 && e.clientX <= rect.right + 14
             && e.clientY >= rect.top - 14 && e.clientY <= rect.bottom + 14;
           if (!isNearInput) {
+            // 鍵盤輸入中的字尾鎖定會攔截 select；空白處明確要求全選時，
+            // 必須先解除，否則同一位置第二下看起來會完全沒反應。
+            activeInput.caretLockedToEnd = false;
+            activeInput.displayCaretAtEnd = false;
             activeInput.select();
+            requestAnimationFrame(() => activeInput.select());
           }
           activeInput.focus();
           return;
@@ -1317,6 +1322,16 @@ function startInlineEdit(code, clickEvent) {
       input.setSelectionRange(end, end);
     }
   };
+  let visualCaret = null;
+  const updateVisualCaret = () => {
+    if (!visualCaret || !input.isConnected) return;
+    const parentRect = input.parentElement.getBoundingClientRect();
+    const rect = input.getBoundingClientRect();
+    const index = input.displayCaretAtEnd
+      ? input.value.length
+      : (input.selectionStart ?? input.value.length);
+    visualCaret.style.left = `${Math.round(rect.left - parentRect.left + measureContext.measureText(input.value.slice(0, index)).width)}px`;
+  };
   const resizeInputWidth = () => {
     const textWidth = measureContext.measureText(input.value || '0').width;
     let width = Math.ceil(Math.max(2, textWidth + 2));
@@ -1356,9 +1371,13 @@ function startInlineEdit(code, clickEvent) {
     // Chrome 版本較舊時，輸入事件結束後才會更新繪製游標；再延後一次可
     // 確保首個數字顯示為 1|，而不是 |1。
     if (forceCaretToEnd || input.caretLockedToEnd) {
+      input.displayCaretAtEnd = true;
       requestAnimationFrame(keepNativeCaretAtEnd);
+      requestAnimationFrame(updateVisualCaret);
       window.setTimeout(keepNativeCaretAtEnd, 0);
+      window.setTimeout(updateVisualCaret, 0);
       window.setTimeout(keepNativeCaretAtEnd, 50);
+      window.setTimeout(updateVisualCaret, 50);
     }
     if (forceCaretToEnd && !input.firstKeyCaretCorrectionActive) {
       // 舊版 Chrome 有時會在 input／動畫幀都結束後才發出 selectionchange，
@@ -1386,6 +1405,7 @@ function startInlineEdit(code, clickEvent) {
   input.addEventListener('pointerdown', () => {
     input.manualKeyboardCaretLock = null;
     input.caretLockedToEnd = false;
+    input.displayCaretAtEnd = false;
   });
   const restorePendingManualCaret = () => {
     const pending = input.pendingManualNumeric;
@@ -1434,6 +1454,10 @@ function startInlineEdit(code, clickEvent) {
 
   // 將輸入框插入到原本金額標籤的前方
   amountEl.parentNode.insertBefore(input, amountEl);
+  visualCaret = document.createElement('span');
+  visualCaret.className = 'currency-inline-caret';
+  visualCaret.setAttribute('aria-hidden', 'true');
+  amountEl.parentNode.appendChild(visualCaret);
   
   // 聚焦
   input.focus();
@@ -1445,6 +1469,7 @@ function startInlineEdit(code, clickEvent) {
     const finalPos = Math.max(0, Math.min(input.value.length, targetCursorPos));
     input.setSelectionRange(finalPos, finalPos);
   }
+  updateVisualCaret();
   if (clickEvent && clickEvent.showPasteButton) {
     const pastePosition = clickEvent.pasteMode === 'insert'
       ? { clientX: clickEvent.clientX, clientY: Math.min(input.getBoundingClientRect().bottom + 10, window.innerHeight - 48) }
@@ -1461,6 +1486,7 @@ function startInlineEdit(code, clickEvent) {
     clearPendingPasteButton();
     input.focus();
     input.caretLockedToEnd = false;
+    input.displayCaretAtEnd = false;
     // 短按游標位置完全交給手機瀏覽器原生處理，準確對應手指位置。
     touchPasteLongPress = false;
     lastTouchPasteAt = Date.now();
@@ -1561,6 +1587,7 @@ function startInlineEdit(code, clickEvent) {
     // 沒有標準 keydown 的輸入法備援：只先全選，數字仍由瀏覽器原生寫入。
     if (e.inputType === 'insertText' && /^[0-9.,]$/.test(e.data || '')) {
       input.caretLockedToEnd = true;
+      input.displayCaretAtEnd = true;
       if (input.replaceOnFirstKeyboardDigit) {
         input.select();
         input.replaceOnFirstKeyboardDigit = false;
@@ -1585,19 +1612,24 @@ function startInlineEdit(code, clickEvent) {
       // 只在切換貨幣後的第一鍵先全選，讓該鍵覆蓋換算預覽值。
       // 中文輸入法隨後的 select 事件也要維持真正的原生游標在字尾。
       input.caretLockedToEnd = true;
+      input.displayCaretAtEnd = true;
       if (input.replaceOnFirstKeyboardDigit) {
         input.select();
         input.replaceOnFirstKeyboardDigit = false;
       }
     } else if (/^(ArrowLeft|ArrowRight|Home|End)$/.test(e.key)) {
       input.caretLockedToEnd = false;
+      input.displayCaretAtEnd = false;
     } else if (e.key === 'Enter') {
       commitEdit();
     } else if (e.key === 'Escape') {
       cancelEdit();
     }
   });
-  input.addEventListener('select', keepNativeCaretAtEnd);
+  input.addEventListener('select', () => {
+    keepNativeCaretAtEnd();
+    updateVisualCaret();
+  });
 }
 
 async function init() {
