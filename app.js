@@ -1284,8 +1284,11 @@ function startInlineEdit(code, clickEvent) {
 
   // 建立文字輸入框
   const input = document.createElement('input');
-  input.type = 'text';
+  // 金額只接受數字；tel 欄位在 Windows 中文輸入法下不會走一般文字組字
+  // 游標流程，仍支援 selectionStart 與自訂計算機按鈕。
+  input.type = 'tel';
   input.inputMode = 'none';
+  input.lang = 'en';
   input.className = 'currency-amount-input';
   // 從另一種貨幣切換過來時，第一個鍵盤數字一定覆蓋換算預覽值。
   input.replaceOnFirstKeyboardDigit = Boolean(clickEvent && clickEvent.replaceOnFirstKeyboardDigit);

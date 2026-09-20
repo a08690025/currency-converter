@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?rev=20260920-native-ime-input" />
+  <link rel="stylesheet" href="style.css?rev=20260920-numeric-ime-field" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon.jpg" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -203,11 +203,11 @@
   <!-- Toast 通知 -->
   <div class="toast" id="toast" role="alert" aria-live="polite"></div>
 
-  <script src="app.js?rev=20260920-native-ime-input"></script>
+  <script src="app.js?rev=20260920-numeric-ime-field"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?rev=20260920-native-ime-input')
+        navigator.serviceWorker.register('./sw.js?rev=20260920-numeric-ime-field')
           .then(reg => console.log('PWA Service Worker registered!', reg))
           .catch(err => console.log('Service Worker registration failed: ', err));
       });
