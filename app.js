@@ -277,6 +277,8 @@ function applyOperator() {
    將計算機面板的點選動作，套用到直接編輯的 input 游標位置
    =========================== */
 function handleInputWithCalcBtn(input, action, value) {
+  input.hasUserInput = true;
+  input.previewOnly = false;
   const start = input.selectionStart;
   const end = input.selectionEnd;
   let val = input.value;
@@ -426,6 +428,8 @@ function showPasteButton(position, mode = 'replace', lockMs = 0) {
         input.value = pastedText;
         input.setSelectionRange(input.value.length, input.value.length);
       }
+      input.hasUserInput = true;
+      input.previewOnly = false;
       input.resizeCurrencyAmountInput?.();
       input.focus();
     } catch (error) {
@@ -663,10 +667,7 @@ function renderCurrencyList() {
           const isNearInput = e.clientX >= rect.left - 14 && e.clientX <= rect.right + 14
             && e.clientY >= rect.top - 14 && e.clientY <= rect.bottom + 14;
           if (!isNearInput) {
-            // 鍵盤輸入中的字尾鎖定會攔截 select；空白處明確要求全選時，
-            // 必須先解除，否則同一位置第二下看起來會完全沒反應。
-            activeInput.caretLockedToEnd = false;
-            activeInput.displayCaretAtEnd = false;
+            // 空白處一律全選；不使用額外游標鎖定，第二下也必須可重複執行。
             activeInput.select();
             requestAnimationFrame(() => activeInput.select());
           }
@@ -1292,145 +1293,35 @@ function startInlineEdit(code, clickEvent) {
   input.type = 'text';
   input.inputMode = 'none';
   input.className = 'currency-amount-input';
-  // 從另一種貨幣切換過來時，第一個鍵盤數字一定覆蓋換算預覽值。
-  input.replaceOnFirstKeyboardDigit = Boolean(clickEvent && clickEvent.replaceOnFirstKeyboardDigit);
-  // 輸入框只覆蓋實際數字寬度。不可用固定 150px，否則視覺上的空白處
-  // 仍會被當成輸入框，手機就會把游標放到數字最左邊而不是全選。
+  // 切換貨幣時，換算結果是預覽而不是輸入值；第一個數字直接進空欄位。
+  input.replaceOnFirstKeyboardDigit = false;
   
   // 獲取目前畫面上顯示的數值，去除千分位逗號
   // 這能保證使用者點擊 "102.0" 編輯時就是 "102.0"，而不會跑出後台未格式化的 "102.0410632"
   const rawValue = amountEl.textContent.replace(/,/g, '');
   
-  if (rawValue === '0' || rawValue === '') {
+  input.previewOnly = Boolean(clickEvent && clickEvent.replaceOnFirstKeyboardDigit);
+  input.hasUserInput = false;
+  if (input.previewOnly) {
+    input.value = '';
+    input.placeholder = rawValue;
+    targetCursorPos = 0;
+  } else if (rawValue === '0' || rawValue === '') {
     input.value = '';
     targetCursorPos = 0;
   } else {
     input.value = rawValue;
   }
 
-  // 輸入框寬度貼合數字並靠右；金額文字也必須靠右，避免輸入框的實際
-  // 最小寬度大於單一數字時，游標被畫到左緣而出現 |1。
-  const amountStyle = window.getComputedStyle(amountEl);
-  const measureContext = document.createElement('canvas').getContext('2d');
-  measureContext.font = `${amountStyle.fontWeight} ${amountStyle.fontSize} ${amountStyle.fontFamily}`;
-  // 只使用瀏覽器原生游標。中文 IME 的後續選取事件會真的改動游標位置，
-  // 因此在鍵盤數字輸入期間把「原生」選取範圍校正到字尾，而不是另畫假游標。
-  const keepNativeCaretAtEnd = () => {
-    if (!input.caretLockedToEnd || !input.isConnected || document.activeElement !== input) return;
-    const end = input.value.length;
-    if (input.selectionStart !== end || input.selectionEnd !== end) {
-      input.setSelectionRange(end, end);
-    }
-  };
-  let visualCaret = null;
-  const updateVisualCaret = () => {
-    if (!visualCaret || !input.isConnected) return;
-    const parentRect = input.parentElement.getBoundingClientRect();
-    const rect = input.getBoundingClientRect();
-    const index = input.displayCaretAtEnd
-      ? input.value.length
-      : (input.selectionStart ?? input.value.length);
-    const inputStyle = window.getComputedStyle(input);
-    const paddingRight = Number.parseFloat(inputStyle.paddingRight) || 0;
-    const fullTextWidth = measureContext.measureText(input.value).width;
-    const textLeft = rect.right - paddingRight - fullTextWidth;
-    const caretOffset = measureContext.measureText(input.value.slice(0, index)).width;
-    visualCaret.style.left = `${Math.round(textLeft - parentRect.left + caretOffset)}px`;
-  };
-  const resizeInputWidth = () => {
-    const textWidth = measureContext.measureText(input.value || '0').width;
-    let width = Math.ceil(Math.max(2, textWidth + 2));
-    input.style.width = `${width}px`;
-    // Canvas 量測和 Android 實際字型偶有誤差；以 input 的真實 scrollWidth 再校正。
-    if (input.isConnected && input.scrollWidth > input.clientWidth) {
-      width += Math.ceil(input.scrollWidth - input.clientWidth) + 4;
-      input.style.width = `${width}px`;
-    }
-  };
-  input.resizeCurrencyAmountInput = resizeInputWidth;
+  // 使用固定寬度、靠右的原生文字輸入框。IME 組字時不可改變欄位寬度、
+  // 不可自行繪製游標，也不可強制改寫選取範圍。
+  input.resizeCurrencyAmountInput = () => {};
   input.addEventListener('input', () => {
-    // 中文輸入法有時忽略 keydown/beforeinput 的取消，最後仍送來一個真的
-    // input 事件。若它改動了剛由鍵盤處理器寫入的內容，立即回復該內容。
-    const pendingManualNumeric = input.pendingManualNumeric;
-    if (pendingManualNumeric && input.value !== pendingManualNumeric.value) {
-      input.value = pendingManualNumeric.value;
-      input.setSelectionRange(pendingManualNumeric.caret, pendingManualNumeric.caret);
-      input.pendingManualNumeric = null;
-      window.clearTimeout(input.pendingManualNumericTimer);
-    }
-    // 計算機的 0 是起始值，後面接整數時不可形成 01／001；小數 0.1 保留。
-    let caret = input.selectionStart;
+    input.hasUserInput = true;
+    input.previewOnly = false;
+    // 只有前導零需要正規化；其餘游標位置完全保留給瀏覽器與 IME。
     const zeroPrefix = /^0+(?=\d)/.exec(input.value);
-    if (zeroPrefix) {
-      input.value = input.value.slice(zeroPrefix[0].length);
-      caret = Math.max(0, (caret ?? 0) - zeroPrefix[0].length);
-    }
-    const forceCaretToEnd = input.forceCaretToEndAfterNativeInput;
-    if (forceCaretToEnd || input.caretLockedToEnd) input.caretLockedToEnd = true;
-    if (forceCaretToEnd) caret = input.value.length;
-    resizeInputWidth();
-    // 寬度重排後保留瀏覽器已計算好的插入位置，不自行新增任何文字。
-    if (caret !== null) requestAnimationFrame(() => {
-      if (input.isConnected) input.setSelectionRange(caret, caret);
-    });
-    // Chrome 版本較舊時，輸入事件結束後才會更新繪製游標；再延後一次可
-    // 確保首個數字顯示為 1|，而不是 |1。
-    if (forceCaretToEnd || input.caretLockedToEnd || input.displayCaretAtEnd) {
-      input.displayCaretAtEnd = true;
-      if (input.caretLockedToEnd) requestAnimationFrame(keepNativeCaretAtEnd);
-      requestAnimationFrame(updateVisualCaret);
-      if (input.caretLockedToEnd) window.setTimeout(keepNativeCaretAtEnd, 0);
-      window.setTimeout(updateVisualCaret, 0);
-      if (input.caretLockedToEnd) window.setTimeout(keepNativeCaretAtEnd, 50);
-      window.setTimeout(updateVisualCaret, 50);
-    }
-    if (forceCaretToEnd && !input.firstKeyCaretCorrectionActive) {
-      // 舊版 Chrome 有時會在 input／動畫幀都結束後才發出 selectionchange，
-      // 把右對齊輸入框畫成 |1。短暫監聽該事件並只校正這一次首鍵。
-      input.firstKeyCaretCorrectionActive = true;
-      const correctFirstKeyCaret = () => {
-        if (input.isConnected && document.activeElement === input) {
-          const end = input.value.length;
-          if (input.selectionStart !== end || input.selectionEnd !== end) {
-            input.setSelectionRange(end, end);
-          }
-        }
-      };
-      document.addEventListener('selectionchange', correctFirstKeyCaret);
-      window.setTimeout(() => {
-        correctFirstKeyCaret();
-        document.removeEventListener('selectionchange', correctFirstKeyCaret);
-        input.forceCaretToEndAfterNativeInput = false;
-        input.firstKeyCaretCorrectionActive = false;
-      }, 120);
-    }
-  });
-  // 中文輸入法可能在 keydown 完成後才重設游標；使用者親自點選時立即
-  // 解除短暫游標鎖定，保留原本在數字中間插入的能力。
-  input.addEventListener('pointerdown', () => {
-    input.manualKeyboardCaretLock = null;
-    input.caretLockedToEnd = false;
-    input.displayCaretAtEnd = false;
-  });
-  const restorePendingManualCaret = () => {
-    const pending = input.pendingManualNumeric;
-    if (pending && input.isConnected && document.activeElement === input && input.value === pending.value) {
-      input.setSelectionRange(pending.caret, pending.caret);
-    }
-  };
-  // 中文輸入法會在組字完成時才最後改動選取範圍；這必須比 keydown 的
-  // 校正更晚執行，否則畫面仍會出現 |1。
-  input.addEventListener('compositionstart', () => {
-    // 中文輸入法的數字可能走 composition 路徑，keydown 的 key 會是 Process，
-    // 而非 "1"。此時先只固定顯示游標，不干預 IME 的原生組字選取範圍。
-    input.displayCaretAtEnd = true;
-    requestAnimationFrame(updateVisualCaret);
-  });
-  input.addEventListener('compositionend', () => {
-    window.setTimeout(restorePendingManualCaret, 0);
-    window.setTimeout(restorePendingManualCaret, 50);
-    window.setTimeout(updateVisualCaret, 0);
-    window.setTimeout(updateVisualCaret, 50);
+    if (zeroPrefix) input.value = input.value.slice(zeroPrefix[0].length);
   });
   input.addEventListener('paste', (e) => {
     const text = e.clipboardData && e.clipboardData.getData('text');
@@ -1438,51 +1329,25 @@ function startInlineEdit(code, clickEvent) {
     e.preventDefault();
     const pastedText = getPastedAmount(text);
     input.setRangeText(pastedText, input.selectionStart, input.selectionEnd, 'end');
-    resizeInputWidth();
+    input.hasUserInput = true;
+    input.previewOnly = false;
   });
-  resizeInputWidth();
-
-  // 手機在「長按全選」後可能不肯把下一次短按交給原生游標。
-  // 以輸入框自己的實際字型與文字寬度換算，讓第一下就落在手指的位置。
-  const setCaretAtTouchX = (clientX) => {
-    const text = input.value;
-    if (!text) return input.setSelectionRange(0, 0);
-    const rect = input.getBoundingClientRect();
-    const inputStyle = window.getComputedStyle(input);
-    const paddingRight = Number.parseFloat(inputStyle.paddingRight) || 0;
-    const textWidth = measureContext.measureText(text).width;
-    const textLeft = rect.right - paddingRight - textWidth;
-    let nearest = 0;
-    let nearestDistance = Infinity;
-    for (let index = 0; index <= text.length; index++) {
-      const boundary = textLeft + measureContext.measureText(text.slice(0, index)).width;
-      const distance = Math.abs(clientX - boundary);
-      if (distance < nearestDistance) {
-        nearest = index;
-        nearestDistance = distance;
-      }
-    }
-    input.setSelectionRange(nearest, nearest);
-  };
 
   // 將輸入框插入到原本金額標籤的前方
   amountEl.parentNode.insertBefore(input, amountEl);
-  visualCaret = document.createElement('span');
-  visualCaret.className = 'currency-inline-caret';
-  visualCaret.setAttribute('aria-hidden', 'true');
-  amountEl.parentNode.appendChild(visualCaret);
   
   // 聚焦
   input.focus();
   
   // 點輸入框以外的卡片才全選；點金額輸入框時保留游標以便插入。
-  if (clickEvent && clickEvent.selectAll) {
+  if (input.previewOnly) {
+    input.setSelectionRange(0, 0);
+  } else if (clickEvent && clickEvent.selectAll) {
     input.select();
   } else {
     const finalPos = Math.max(0, Math.min(input.value.length, targetCursorPos));
     input.setSelectionRange(finalPos, finalPos);
   }
-  updateVisualCaret();
   if (clickEvent && clickEvent.showPasteButton) {
     const pastePosition = clickEvent.pasteMode === 'insert'
       ? { clientX: clickEvent.clientX, clientY: Math.min(input.getBoundingClientRect().bottom + 10, window.innerHeight - 48) }
@@ -1498,8 +1363,6 @@ function startInlineEdit(code, clickEvent) {
     e.stopPropagation();
     clearPendingPasteButton();
     input.focus();
-    input.caretLockedToEnd = false;
-    input.displayCaretAtEnd = false;
     // 短按游標位置完全交給手機瀏覽器原生處理，準確對應手指位置。
     touchPasteLongPress = false;
     lastTouchPasteAt = Date.now();
@@ -1508,13 +1371,6 @@ function startInlineEdit(code, clickEvent) {
     lastTouchPastePosition = touch
       ? { clientX: touch.clientX, clientY: Math.min(inputRect.bottom + 10, window.innerHeight - 48) }
       : null;
-    // Android 有時在長按全選後，下一次短按仍保留整段反白。
-    // 先讓瀏覽器處理真正觸控游標；若它沒有取消全選，再依觸控位置收回游標。
-    window.setTimeout(() => {
-      if (input.value.length > 0 && input.selectionStart === 0 && input.selectionEnd === input.value.length) {
-        setCaretAtTouchX(touch ? touch.clientX : input.getBoundingClientRect().right);
-      }
-    }, 0);
   }, { passive: false });
   input.addEventListener('touchend', () => {
     if (!touchPasteLongPress) {
@@ -1543,7 +1399,9 @@ function startInlineEdit(code, clickEvent) {
     textVal = textVal.replace(/[^0-9.]/g, '');
     
     const parsedVal = parseFloat(textVal);
-    if (!isNaN(parsedVal) && isFinite(parsedVal)) {
+    if (input.previewOnly && !input.hasUserInput) {
+      // 只看過換算預覽就離開時，保留 selectCurrency 已寫入的換算數值。
+    } else if (!isNaN(parsedVal) && isFinite(parsedVal)) {
       state.inputValue = String(parsedVal);
     } else {
       state.inputValue = '0';
@@ -1589,26 +1447,8 @@ function startInlineEdit(code, clickEvent) {
     '=': ['equals', ''],
   };
   input.addEventListener('beforeinput', (e) => {
-    // 輸入框自己的 keydown 已經手動寫入數字；若舊 Chrome 仍送出
-    // beforeinput，必須取消它，避免 1| 又被原生插成 1|1。
-    if (/^insert(?:Text|CompositionText)$/.test(e.inputType) && /^[0-9.,]$/.test(e.data || '')
-      && input.ignoreNextNativeNumericBeforeInput) {
-      e.preventDefault();
-      input.ignoreNextNativeNumericBeforeInput = false;
-      return;
-    }
-    // 沒有標準 keydown 的輸入法備援：只先全選，數字仍由瀏覽器原生寫入。
-    if (/^insert(?:Text|CompositionText)$/.test(e.inputType) && /^[0-9.,]$/.test(e.data || '')) {
-      input.caretLockedToEnd = true;
-      input.displayCaretAtEnd = true;
-      if (input.replaceOnFirstKeyboardDigit) {
-        input.select();
-        input.replaceOnFirstKeyboardDigit = false;
-        input.forceCaretToEndAfterNativeInput = true;
-      }
-      return;
-    }
-    // 少數鍵盤／輸入法沒有標準 key 名稱時的運算符備援。
+    // 數字與 IME 組字完全交給原生 input；只攔截計算器運算符。
+    if (e.isComposing) return;
     const operation = inlineTextOperations[e.data];
     if (!operation) return;
     e.preventDefault();
@@ -1618,30 +1458,11 @@ function startInlineEdit(code, clickEvent) {
   // 監聽失去焦點與鍵盤動作
   input.addEventListener('blur', commitEdit);
   input.addEventListener('keydown', (e) => {
-    const numpadMatch = /^Numpad([0-9])$/.exec(e.code || '');
-    const digit = /^\d$/.test(e.key) ? e.key : (numpadMatch ? numpadMatch[1] : null);
-    if (digit !== null || e.key === '.' || e.key === ',') {
-      // 實體鍵盤完全交給瀏覽器原生輸入，中文輸入法才不會再補送第二個 1。
-      // 只在切換貨幣後的第一鍵先全選，讓該鍵覆蓋換算預覽值。
-      // 中文輸入法隨後的 select 事件也要維持真正的原生游標在字尾。
-      input.caretLockedToEnd = true;
-      input.displayCaretAtEnd = true;
-      if (input.replaceOnFirstKeyboardDigit) {
-        input.select();
-        input.replaceOnFirstKeyboardDigit = false;
-      }
-    } else if (/^(ArrowLeft|ArrowRight|Home|End)$/.test(e.key)) {
-      input.caretLockedToEnd = false;
-      input.displayCaretAtEnd = false;
-    } else if (e.key === 'Enter') {
+    if (e.key === 'Enter') {
       commitEdit();
     } else if (e.key === 'Escape') {
       cancelEdit();
     }
-  });
-  input.addEventListener('select', () => {
-    keepNativeCaretAtEnd();
-    updateVisualCaret();
   });
 }
 
