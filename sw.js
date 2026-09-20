@@ -1,7 +1,7 @@
 // 更新網站檔案時請提高這個版本，讓已安裝的 PWA 取得新版快取。
-const CACHE_NAME = 'currency-converter-v12';
-const RELEASE_REVISION = '20260920-preview-caret';
-const CACHE_NAMES_TO_RESET = ['currency-converter-v10', 'currency-converter-v11', 'currency-converter-v12'];
+const CACHE_NAME = 'currency-converter-v13';
+const RELEASE_REVISION = '20260920-native-caret';
+const CACHE_NAMES_TO_RESET = ['currency-converter-v10', 'currency-converter-v11', 'currency-converter-v12', 'currency-converter-v13'];
 const ASSETS = [
   './',
   './index.html',

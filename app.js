@@ -1297,20 +1297,17 @@ function startInlineEdit(code, clickEvent) {
   input.type = 'text';
   input.inputMode = 'none';
   input.className = 'currency-amount-input';
-  // 切換貨幣時，換算結果是預覽而不是輸入值；第一個數字直接進空欄位。
+  // 切換貨幣時直接使用原生輸入值；若是第一次輸入，稍後會全選它，
+  // 讓中文輸入法的第一個數字覆蓋換算值，而不是插到游標最左邊。
   input.replaceOnFirstKeyboardDigit = false;
   
   // 獲取目前畫面上顯示的數值，去除千分位逗號
   // 這能保證使用者點擊 "102.0" 編輯時就是 "102.0"，而不會跑出後台未格式化的 "102.0410632"
   const rawValue = amountEl.textContent.replace(/,/g, '');
   
-  input.previewOnly = Boolean(clickEvent && clickEvent.replaceOnFirstKeyboardDigit);
+  input.previewOnly = false;
   input.hasUserInput = false;
-  if (input.previewOnly) {
-    input.value = '';
-    input.placeholder = rawValue;
-    targetCursorPos = 0;
-  } else if (rawValue === '0' || rawValue === '') {
+  if (rawValue === '0' || rawValue === '') {
     input.value = '';
     targetCursorPos = 0;
   } else {
@@ -1381,15 +1378,6 @@ function startInlineEdit(code, clickEvent) {
   };
   input.addEventListener('pointerdown', (e) => {
     const target = caretPositionFromClientX(e.clientX);
-    if (input.previewOnly) {
-      // 換算預覽仍是空的原生輸入值，避免中文輸入法把第一個字插到最左邊；
-      // 以視覺游標標示使用者在灰色預覽數字中點到的確切位置。
-      e.preventDefault();
-      input.focus();
-      input.setSelectionRange(0, 0);
-      showPreviewCaret(target);
-      return;
-    }
     if (target.isBlank) {
       // 瀏覽器稍後的原生 hit-test 會清掉同步 select()；攔截它並在下一幀
       // 再選一次，讓桌面與手機的空白區點按都穩定維持全選。
@@ -1411,22 +1399,12 @@ function startInlineEdit(code, clickEvent) {
 
   // 將輸入框插入到原本金額標籤的前方
   amountEl.parentNode.insertBefore(input, amountEl);
-  if (input.previewOnly) {
-    const previewCaret = document.createElement('span');
-    previewCaret.className = 'currency-preview-caret';
-    previewCaret.setAttribute('aria-hidden', 'true');
-    input.parentNode.appendChild(previewCaret);
-    input.previewCaret = previewCaret;
-    showPreviewCaret();
-  }
   
   // 聚焦
   input.focus();
   
   // 點輸入框以外的卡片才全選；點金額輸入框時保留游標以便插入。
-  if (input.previewOnly) {
-    input.setSelectionRange(0, 0);
-  } else if (clickEvent && clickEvent.selectAll) {
+  if (clickEvent && (clickEvent.selectAll || clickEvent.replaceOnFirstKeyboardDigit)) {
     input.select();
   } else {
     const finalPos = Math.max(0, Math.min(input.value.length, targetCursorPos));
@@ -1456,13 +1434,6 @@ function startInlineEdit(code, clickEvent) {
     // 手指點在數字左側空白時，明確全選；點到數字本體才交給原生插入游標。
     if (touch) {
       const target = caretPositionFromClientX(touch.clientX);
-      if (input.previewOnly) {
-        e.preventDefault();
-        input.focus();
-        input.setSelectionRange(0, 0);
-        showPreviewCaret(target);
-        return;
-      }
       if (target.isBlank) {
         touchBlankSelect = true;
         e.preventDefault();
