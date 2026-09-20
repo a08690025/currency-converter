@@ -1375,13 +1375,13 @@ function startInlineEdit(code, clickEvent) {
     });
     // Chrome 版本較舊時，輸入事件結束後才會更新繪製游標；再延後一次可
     // 確保首個數字顯示為 1|，而不是 |1。
-    if (forceCaretToEnd || input.caretLockedToEnd) {
+    if (forceCaretToEnd || input.caretLockedToEnd || input.displayCaretAtEnd) {
       input.displayCaretAtEnd = true;
-      requestAnimationFrame(keepNativeCaretAtEnd);
+      if (input.caretLockedToEnd) requestAnimationFrame(keepNativeCaretAtEnd);
       requestAnimationFrame(updateVisualCaret);
-      window.setTimeout(keepNativeCaretAtEnd, 0);
+      if (input.caretLockedToEnd) window.setTimeout(keepNativeCaretAtEnd, 0);
       window.setTimeout(updateVisualCaret, 0);
-      window.setTimeout(keepNativeCaretAtEnd, 50);
+      if (input.caretLockedToEnd) window.setTimeout(keepNativeCaretAtEnd, 50);
       window.setTimeout(updateVisualCaret, 50);
     }
     if (forceCaretToEnd && !input.firstKeyCaretCorrectionActive) {
@@ -1420,9 +1420,17 @@ function startInlineEdit(code, clickEvent) {
   };
   // 中文輸入法會在組字完成時才最後改動選取範圍；這必須比 keydown 的
   // 校正更晚執行，否則畫面仍會出現 |1。
+  input.addEventListener('compositionstart', () => {
+    // 中文輸入法的數字可能走 composition 路徑，keydown 的 key 會是 Process，
+    // 而非 "1"。此時先只固定顯示游標，不干預 IME 的原生組字選取範圍。
+    input.displayCaretAtEnd = true;
+    requestAnimationFrame(updateVisualCaret);
+  });
   input.addEventListener('compositionend', () => {
     window.setTimeout(restorePendingManualCaret, 0);
     window.setTimeout(restorePendingManualCaret, 50);
+    window.setTimeout(updateVisualCaret, 0);
+    window.setTimeout(updateVisualCaret, 50);
   });
   input.addEventListener('paste', (e) => {
     const text = e.clipboardData && e.clipboardData.getData('text');
@@ -1583,14 +1591,14 @@ function startInlineEdit(code, clickEvent) {
   input.addEventListener('beforeinput', (e) => {
     // 輸入框自己的 keydown 已經手動寫入數字；若舊 Chrome 仍送出
     // beforeinput，必須取消它，避免 1| 又被原生插成 1|1。
-    if (e.inputType === 'insertText' && /^[0-9.,]$/.test(e.data || '')
+    if (/^insert(?:Text|CompositionText)$/.test(e.inputType) && /^[0-9.,]$/.test(e.data || '')
       && input.ignoreNextNativeNumericBeforeInput) {
       e.preventDefault();
       input.ignoreNextNativeNumericBeforeInput = false;
       return;
     }
     // 沒有標準 keydown 的輸入法備援：只先全選，數字仍由瀏覽器原生寫入。
-    if (e.inputType === 'insertText' && /^[0-9.,]$/.test(e.data || '')) {
+    if (/^insert(?:Text|CompositionText)$/.test(e.inputType) && /^[0-9.,]$/.test(e.data || '')) {
       input.caretLockedToEnd = true;
       input.displayCaretAtEnd = true;
       if (input.replaceOnFirstKeyboardDigit) {
