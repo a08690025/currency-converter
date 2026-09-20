@@ -1378,6 +1378,18 @@ function startInlineEdit(code, clickEvent) {
   input.addEventListener('pointerdown', () => {
     input.manualKeyboardCaretLock = null;
   });
+  const restorePendingManualCaret = () => {
+    const pending = input.pendingManualNumeric;
+    if (pending && input.isConnected && document.activeElement === input && input.value === pending.value) {
+      input.setSelectionRange(pending.caret, pending.caret);
+    }
+  };
+  // 中文輸入法會在組字完成時才最後改動選取範圍；這必須比 keydown 的
+  // 校正更晚執行，否則畫面仍會出現 |1。
+  input.addEventListener('compositionend', () => {
+    window.setTimeout(restorePendingManualCaret, 0);
+    window.setTimeout(restorePendingManualCaret, 50);
+  });
   input.addEventListener('paste', (e) => {
     const text = e.clipboardData && e.clipboardData.getData('text');
     if (text === null || text === undefined) return;
@@ -1599,6 +1611,9 @@ function startInlineEdit(code, clickEvent) {
     } else if (e.key === 'Escape') {
       cancelEdit();
     }
+  });
+  input.addEventListener('keyup', () => {
+    window.setTimeout(restorePendingManualCaret, 0);
   });
 }
 
