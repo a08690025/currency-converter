@@ -375,7 +375,6 @@ input { font-family: var(--font); outline: none; border: none; background: trans
   text-align: left;
   direction: ltr;
   unicode-bidi: plaintext;
-  ime-mode: disabled;
   width: 150px;
   flex: 0 0 auto; /* 不可被貨幣代碼擠窄，避免長數字被裁掉 */
   padding: 0;
