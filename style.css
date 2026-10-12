@@ -982,7 +982,7 @@ input { font-family: var(--font); outline: none; border: none; background: trans
   .currency-list { gap: 5px; }
   .currency-item { padding: 8px 14px; }
   .currency-flag { width: 40px; height: 40px; }
-  .calc-btn { height: 52px; font-size: 20px; }
+  .calc-btn { height: 56px; font-size: 20px; }
 }
 @media (min-width: 480px) and (max-height: 600px) {
   .currency-section { padding-top: 6px; }
