@@ -948,7 +948,7 @@ input { font-family: var(--font); outline: none; border: none; background: trans
 @media (max-width: 479px) {
   :root {
     --header-h: 52px;
-    --mobile-bottom-fill: max(32px, env(safe-area-inset-bottom, 0px));
+    --mobile-key-row-extra: 6.4px;
   }
 
   html, body {
@@ -1037,41 +1037,19 @@ input { font-family: var(--font); outline: none; border: none; background: trans
   }
 
   .calc-btn {
-    height: clamp(46px, 7dvh, 56px);
+    height: calc(clamp(46px, 7dvh, 56px) + var(--mobile-key-row-extra));
     font-size: 20px;
   }
 
   /* 四個以下貨幣時利用底部剩餘空間放大鍵盤；五個以上維持緊湊高度。 */
   .currency-section:not(:has(.currency-item:nth-child(5))) + .calculator .calc-btn {
-    height: clamp(54px, 8.2dvh, 62px);
+    height: calc(clamp(54px, 8.2dvh, 62px) + var(--mobile-key-row-extra));
   }
 
   .calculator {
     padding-bottom: 0;
   }
 
-  /* 以最後一排按鍵配色填滿 Android 底部安全區，避免出現白色空帶。 */
-  .calc-grid {
-    position: relative;
-    padding-bottom: var(--mobile-bottom-fill);
-  }
-
-  .calc-grid::after {
-    content: '';
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    height: var(--mobile-bottom-fill);
-    background: linear-gradient(
-      to right,
-      var(--num-btn-bg) 0%,
-      var(--num-btn-bg) 75%,
-      var(--accent) 75%,
-      var(--accent) 100%
-    );
-    pointer-events: none;
-  }
 }
 
 @media (min-width: 480px) and (max-height: 700px) {
