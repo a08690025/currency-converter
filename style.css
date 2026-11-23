@@ -1030,6 +1030,11 @@ input { font-family: var(--font); outline: none; border: none; background: trans
     height: 44px;
   }
 
+  /* 手機版固定保留計算顯示列；沒有算式時也不可收合。 */
+  .calc-display:has(#calcExpr:empty) {
+    display: flex;
+  }
+
   .calc-btn {
     height: clamp(46px, 7dvh, 56px);
     font-size: 20px;
