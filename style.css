@@ -1046,7 +1046,30 @@ input { font-family: var(--font); outline: none; border: none; background: trans
   }
 
   .calculator {
+    padding-bottom: 0;
+  }
+
+  /* 以最後一排按鍵配色填滿 Android 底部安全區，避免出現白色空帶。 */
+  .calc-grid {
+    position: relative;
     padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .calc-grid::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: max(8px, env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(
+      to right,
+      var(--num-btn-bg) 0%,
+      var(--num-btn-bg) 75%,
+      var(--accent) 75%,
+      var(--accent) 100%
+    );
+    pointer-events: none;
   }
 }
 
