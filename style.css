@@ -1035,6 +1035,11 @@ input { font-family: var(--font); outline: none; border: none; background: trans
     font-size: 20px;
   }
 
+  /* 四個以下貨幣時利用底部剩餘空間放大鍵盤；五個以上維持緊湊高度。 */
+  .currency-section:not(:has(.currency-item:nth-child(5))) + .calculator .calc-btn {
+    height: clamp(54px, 8.2dvh, 62px);
+  }
+
   .calculator {
     padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
   }
