@@ -948,6 +948,7 @@ input { font-family: var(--font); outline: none; border: none; background: trans
 @media (max-width: 479px) {
   :root {
     --header-h: 52px;
+    --mobile-bottom-fill: max(32px, env(safe-area-inset-bottom, 0px));
   }
 
   html, body {
@@ -1052,7 +1053,7 @@ input { font-family: var(--font); outline: none; border: none; background: trans
   /* 以最後一排按鍵配色填滿 Android 底部安全區，避免出現白色空帶。 */
   .calc-grid {
     position: relative;
-    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(--mobile-bottom-fill);
   }
 
   .calc-grid::after {
@@ -1061,7 +1062,7 @@ input { font-family: var(--font); outline: none; border: none; background: trans
     right: 0;
     bottom: 0;
     left: 0;
-    height: max(8px, env(safe-area-inset-bottom, 0px));
+    height: var(--mobile-bottom-fill);
     background: linear-gradient(
       to right,
       var(--num-btn-bg) 0%,
