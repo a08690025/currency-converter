@@ -168,6 +168,22 @@ function formatExpressionAmount(value) {
   }).format(value);
 }
 
+// 輸入中的數值必須保留尚未完成的小數格式，例如「6.」與「6.0」。
+// 若先轉成 Number 再格式化，尾端小數點與 0 會在畫面上提早消失。
+function formatEditingAmount(rawValue) {
+  const raw = String(rawValue).replace(/,/g, '');
+  const match = raw.match(/^(-?)(\d+)(?:\.(\d*))?$/);
+  if (!match) return formatExpressionAmount(parseFloat(raw) || 0);
+
+  const [, sign, integerDigits, fractionDigits] = match;
+  const integerText = new Intl.NumberFormat('zh-TW', {
+    maximumFractionDigits: 0,
+  }).format(Number(integerDigits));
+
+  if (!raw.includes('.')) return `${sign}${integerText}`;
+  return `${sign}${integerText}.${fractionDigits}`;
+}
+
 function getCurrencyMeta(code) {
   return ALL_CURRENCIES.find(c => c.code === code) || { code, name: code, flag: '🏳', symbol: '' };
 }
@@ -567,7 +583,7 @@ function updateExpression() {
   // 運算符後正在輸入的第二個數字仍存放在 inputValue；同步顯示它，
   // 讓 7 + 8 在按下等號前就完整呈現在計算顯示列。
   const currentOperand = state.operator && !state.waitingForOperand
-    ? ` ${formatExpressionAmount(getCurrentInputNum())}`
+    ? ` ${formatEditingAmount(state.inputValue)}`
     : '';
   $('calcExpr').textContent = `${state.expression}${currentOperand}`;
 }
@@ -642,7 +658,7 @@ function renderCurrencyList() {
       <div class="currency-info">
         <div class="currency-row1">
           <span class="currency-code">${code}</span>
-          <span class="currency-amount">${formatAmount(displayAmount, code)}</span>
+          <span class="currency-amount">${isActive ? formatEditingAmount(state.inputValue) : formatAmount(displayAmount, code)}</span>
         </div>
         <div class="currency-row2">
           <span class="currency-name">${meta.name}</span>
