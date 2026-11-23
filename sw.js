@@ -1,7 +1,7 @@
 // 更新網站檔案時請提高這個版本，讓已安裝的 PWA 取得新版快取。
-const CACHE_NAME = 'currency-converter-v22';
-const RELEASE_REVISION = '20261123-mobile-display-always-visible';
-const CACHE_NAMES_TO_RESET = ['currency-converter-v10', 'currency-converter-v11', 'currency-converter-v12', 'currency-converter-v13', 'currency-converter-v14', 'currency-converter-v15', 'currency-converter-v16', 'currency-converter-v17', 'currency-converter-v18', 'currency-converter-v19', 'currency-converter-v20', 'currency-converter-v21', 'currency-converter-v22'];
+const CACHE_NAME = 'currency-converter-v23';
+const RELEASE_REVISION = '20261123-live-second-operand';
+const CACHE_NAMES_TO_RESET = ['currency-converter-v10', 'currency-converter-v11', 'currency-converter-v12', 'currency-converter-v13', 'currency-converter-v14', 'currency-converter-v15', 'currency-converter-v16', 'currency-converter-v17', 'currency-converter-v18', 'currency-converter-v19', 'currency-converter-v20', 'currency-converter-v21', 'currency-converter-v22', 'currency-converter-v23'];
 const ASSETS = [
   './',
   './index.html',

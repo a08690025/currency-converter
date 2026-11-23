@@ -564,7 +564,12 @@ function handleCalcBtn(action, value) {
 function updateExpression() {
   // 完成計算後，下一次輸入才清空上一條算式；連續運算則保留完整歷程。
   if (!state.operator) state.expression = '';
-  $('calcExpr').textContent = state.expression;
+  // 運算符後正在輸入的第二個數字仍存放在 inputValue；同步顯示它，
+  // 讓 7 + 8 在按下等號前就完整呈現在計算顯示列。
+  const currentOperand = state.operator && !state.waitingForOperand
+    ? ` ${formatExpressionAmount(getCurrentInputNum())}`
+    : '';
+  $('calcExpr').textContent = `${state.expression}${currentOperand}`;
 }
 
 function animateActiveItem() {
