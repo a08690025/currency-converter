@@ -946,6 +946,10 @@ input { font-family: var(--font); outline: none; border: none; background: trans
    使用者可以捲到最後一排，同時以動態 viewport 單位縮短按鍵。
 */
 @media (max-width: 479px) {
+  :root {
+    --header-h: 52px;
+  }
+
   html, body {
     height: auto;
     min-height: 100dvh;
@@ -962,17 +966,77 @@ input { font-family: var(--font); outline: none; border: none; background: trans
     overflow: visible;
   }
 
+  .app-header {
+    padding: 0 10px;
+  }
+
+  .header-left {
+    gap: 6px;
+  }
+
+  .clickable-logo {
+    padding: 4px 6px;
+    margin-left: -6px;
+  }
+
+  .app-logo svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .header-title {
+    font-size: 16px;
+  }
+
+  .header-right {
+    gap: 2px;
+  }
+
+  .rate-status {
+    gap: 4px;
+    padding: 3px 7px;
+  }
+
+  .status-text {
+    font-size: 10px;
+  }
+
+  .icon-btn {
+    width: 32px;
+    height: 32px;
+  }
+
   .currency-section {
     flex: 0 0 auto;
     overflow: visible;
+    padding: 8px 12px 6px;
+  }
+
+  .currency-list {
+    gap: 5px;
+  }
+
+  .currency-item {
+    gap: 10px;
+    padding: 11px 14px;
+  }
+
+  .currency-flag {
+    width: 40px;
+    height: 40px;
+  }
+
+  .calc-display {
+    height: 44px;
   }
 
   .calc-btn {
-    height: clamp(52px, 8dvh, 70px);
+    height: clamp(46px, 7dvh, 56px);
+    font-size: 20px;
   }
 
   .calculator {
-    padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
   }
 }
 
